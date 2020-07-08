@@ -11,7 +11,7 @@ with MongoDB() as mongo:
             try:
                 appointment['Visit day'] = datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
                 appointment['Waiting list entry date'] = datetime.strptime(appointment['Waiting list entry date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
-            except ValueError:
+            except:
                 continue
             patient['appointment'].append(appointment)
 
