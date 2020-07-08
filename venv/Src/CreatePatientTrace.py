@@ -8,15 +8,17 @@ with MongoDB() as mongo:
         patient['appointment'] = []
 
         for appointment in mongo.query("Appointment_Data", query = {'Pac_Unif_Cod': patient['Pac_Unif_Cod']}, projection = {'_id': 0, 'Month': 0, 'Week day': 0, 'Hour': 0}):
-            appointment['Visit day'] = datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
-            appointment['Waiting list entry date'] = datetime.strptime(appointment['Waiting list entry date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
-
+            try:
+                appointment['Visit day'] = datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
+                appointment['Waiting list entry date'] = datetime.strptime(appointment['Waiting list entry date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
+            except ValueError:
+                continue
             patient['appointment'].append(appointment)
 
         trace.append(patient)
 
         i += 1
-        if i % 10000 == 0:
+        if i % 500 == 0:
             mongo.insert('PatientTrace', trace, many = True)
             trace = []
 
