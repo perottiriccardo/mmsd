@@ -14,7 +14,7 @@ with MongoDB() as mongo:
                 appointment['Waiting list entry date'] = datetime.strptime(appointment['Waiting list entry date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
             except:
                 continue
-            patient['appointment'].append(appointment)
+            patient['appointments'].append(appointment)
 
         trace.append(patient)
 
