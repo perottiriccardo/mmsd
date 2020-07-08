@@ -32,9 +32,9 @@ class MongoDB(object):
         else:
             table.delete_many(query)
 
-    def query(self, tableName, query, one = False):
+    def query(self, tableName, query = {}, projection = None, skip = 0, limit = 0):
         table = self.db[tableName]
-        return table.find_one(query) if one else table.find(query)
+        return table.find(query).skip(skip).limit(limit) if projection == None else table.find(query, projection).skip(skip).limit(limit)
 
     def __exit__(self, exc_type, exc_value, tracebac):
         self.client.close()
