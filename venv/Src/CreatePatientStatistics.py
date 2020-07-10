@@ -19,6 +19,14 @@ with MongoDB() as mongo:
         if statistics['total_appointments'] != 0:
             statistics['start_to_end_appointment_diff'] = trace['appointments'][statistics['total_appointments'] - 1]['Visit day'] - trace['appointments'][0]['Visit day']
 
+        statistics['elapsed_time_between_appointments'] = []
+        for i in range(0, statistics['total_appointments'] - 1):
+            dict = {}
+            dict["first_appointment"] = trace['appointments'][i]['Visit day']
+            dict["second_appointment"] = trace['appointments'][i+1]['Visit day']
+            dict["elapsed_time"] = dict["second_appointment"] - dict["first_appointment"]
+            statistics['elapsed_time_between_appointments'].append(dict)
+
         statisticsList.append(statistics)
 
         i += 1
