@@ -4,8 +4,9 @@ from DBConnection.MongoDBConnection import MongoDB
 with MongoDB() as mongo:
     statisticsList = []
     i = 0
-    for trace in mongo.query('PatientTrace', query = {}, projection = {'appointments': 1}):
+    for trace in mongo.query('PatientTrace', query = {}, projection = {'Pac_Unif_Cod': 1, 'appointments': 1}):
         statistics = {}
+        statistics['pac_unif_cod'] = trace['Pac_Unif_Cod']
         statistics['total_appointments'] = len(trace['appointments'])
 
         statistics['visit_type_appointments'] = {}
