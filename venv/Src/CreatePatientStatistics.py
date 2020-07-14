@@ -8,6 +8,19 @@ with MongoDB() as mongo:
         statistics = {}
         statistics['total_appointments'] = len(trace['appointments'])
 
+        statistics['visit_type_appointments'] = {}
+        statistics['visit_type_appointments']['first'] = sum([1 for appointment in trace['appointments'] if appointment['Visit type'] == 'First'])
+        statistics['visit_type_appointments']['revision'] = sum([1 for appointment in trace['appointments'] if appointment['Visit type'] == 'Revision'])
+        statistics['visit_type_appointments']['non_presential'] = sum([1 for appointment in trace['appointments'] if appointment['Visit type'] == 'Non-presential'])
+        statistics['visit_type_appointments']['other'] = sum([1 for appointment in trace['appointments'] if appointment['Visit type'] == 'Special'])
+
+        statistics['character_of_visit_appointments'] = {}
+        statistics['character_of_visit_appointments']['ordinary'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Ordinary'])
+        statistics['character_of_visit_appointments']['preferential'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Preferential'])
+        statistics['character_of_visit_appointments']['non_presential'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Non-presential'])
+        statistics['character_of_visit_appointments']['results'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Results'])
+        statistics['character_of_visit_appointments']['extra'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Extra'])
+
         statistics['visit_status_appointments'] = {}
         statistics['visit_status_appointments']['done'] = sum([1 for appointment in trace['appointments'] if appointment['Visit status'] == 'Done'])
         statistics['visit_status_appointments']['no_show_up'] = sum([1 for appointment in trace['appointments'] if appointment['Visit status'] == 'NoShowUp'])
