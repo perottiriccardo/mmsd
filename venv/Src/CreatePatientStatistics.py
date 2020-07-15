@@ -4,9 +4,23 @@ from DBConnection.MongoDBConnection import MongoDB
 with MongoDB() as mongo:
     statisticsList = []
     i = 0
-    for trace in mongo.query('PatientTrace', query = {}, projection = {'appointments': 1}):
+    for trace in mongo.query('PatientTrace', query = {}, projection = {'Pac_Unif_Cod': 1, 'appointments': 1}):
         statistics = {}
+        statistics['pac_unif_cod'] = trace['Pac_Unif_Cod']
         statistics['total_appointments'] = len(trace['appointments'])
+
+        statistics['visit_type_appointments'] = {}
+        statistics['visit_type_appointments']['first'] = sum([1 for appointment in trace['appointments'] if appointment['Visit type'] == 'First'])
+        statistics['visit_type_appointments']['revision'] = sum([1 for appointment in trace['appointments'] if appointment['Visit type'] == 'Revision'])
+        statistics['visit_type_appointments']['non_presential'] = sum([1 for appointment in trace['appointments'] if appointment['Visit type'] == 'Non-presential'])
+        statistics['visit_type_appointments']['other'] = sum([1 for appointment in trace['appointments'] if appointment['Visit type'] == 'Special'])
+
+        statistics['character_of_visit_appointments'] = {}
+        statistics['character_of_visit_appointments']['ordinary'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Ordinary'])
+        statistics['character_of_visit_appointments']['preferential'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Preferential'])
+        statistics['character_of_visit_appointments']['non_presential'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Non-presential'])
+        statistics['character_of_visit_appointments']['results'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Results'])
+        statistics['character_of_visit_appointments']['extra'] = sum([1 for appointment in trace['appointments'] if appointment['Character of visit'] == 'Extra'])
 
         statistics['visit_status_appointments'] = {}
         statistics['visit_status_appointments']['done'] = sum([1 for appointment in trace['appointments'] if appointment['Visit status'] == 'Done'])
