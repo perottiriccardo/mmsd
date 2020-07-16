@@ -5,7 +5,8 @@ class PatientGenerator(sim.Component):
     def process(self):
         while True:
             Patient()
-            yield self.hold(sim.Uniform(5, 15).sample())
+            print(env.now())
+            yield self.hold(sim.Uniform(5, 15, 'hours').sample())
 
 class Patient(sim.Component):
     def process(self):
@@ -17,15 +18,28 @@ class Patient(sim.Component):
         yield self.passivate()
 
 class AppointmentSlots(sim.Component):
-
     def process(self):
         while not waitingListPrioritary and not waitingListNonPrioritary:
             yield self.passivate()
-        self.patientServed = waitingListNonPrioritary.pop()
-        yield self.hold(15)
+
+        if not waitingListPrioritary:
+            self.patientServed = waitingListNonPrioritary.pop()
+        elif not waitingListNonPrioritary:
+            self.patientServed = waitingListPrioritary.pop()
+        else:
+            self.patientServed = waitingListNonPrioritary.pop() if np.random.choice(2, 1, p=[0.2, 0.8]) == 0 else waitingListPrioritary.pop()
+
+        yield self.hold(env.minutes(30))
         self.patientServed.activate()
 
-env = sim.Environment(trace=True)
+    def availableSlots(self):
+        actualDay = int(env.now())
+        if actualDay > self.day:
+            self.remainingSlots =
+            self.day = actualDay
+            self.remainingSlots -= 1
+
+env = sim.Environment(trace=True, time_unit='days')
 
 PatientGenerator()
 slot = AppointmentSlots()
