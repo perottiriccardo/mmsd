@@ -19,7 +19,7 @@ class Patient(sim.Component):
 class AppointmentSlots(sim.Component):
 
     def process(self):
-        while not waitingListPrioritary and waitingListNonPrioritary:
+        while not waitingListPrioritary and not waitingListNonPrioritary:
             yield self.passivate()
         self.patientServed = waitingListNonPrioritary.pop()
         yield self.hold(15)
