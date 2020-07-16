@@ -32,12 +32,12 @@ class AppointmentSlots(sim.Component):
         yield self.hold(env.minutes(30))
         self.patientServed.activate()
 
-    def availableSlots(self):
-        actualDay = int(env.now())
-        if actualDay > self.day:
-            self.remainingSlots =
-            self.day = actualDay
-            self.remainingSlots -= 1
+    # def availableSlots(self):
+    #     actualDay = int(env.now())
+    #     if actualDay > self.day:
+    #         self.remainingSlots =
+    #         self.day = actualDay
+    #         self.remainingSlots -= 1
 
 env = sim.Environment(trace=True, time_unit='days')
 
