@@ -1,5 +1,6 @@
 import salabim as sim
 import numpy as np
+import configparser
 
 class PatientGenerator(sim.Component):
     def process(self):
@@ -10,7 +11,10 @@ class PatientGenerator(sim.Component):
 
 class Patient(sim.Component):
     def process(self):
-        self.enter(waitingListNonPrioritary) if np.random.choice(2, 1, p=[1, 0]) == 0 else self.enter(waitingListPrioritary)
+        self.enter(waitingListNonPrioritary) if np.random.choice(2, 1,
+                                                                 p=[config['Probabilities']['patientNonPrioritary'],
+                                                                    config['Probabilities']['patientPrioritary']
+                                                                    ]) == 0 else self.enter(waitingListPrioritary)
         # TODO Inserire un timeout se appointmentslot è passivo e arriva un paziente in coda
         if slot.ispassive():
             slot.activate()
@@ -27,7 +31,10 @@ class AppointmentSlots(sim.Component):
         elif not waitingListNonPrioritary:
             self.patientServed = waitingListPrioritary.pop()
         else:
-            self.patientServed = waitingListNonPrioritary.pop() if np.random.choice(2, 1, p=[0.2, 0.8]) == 0 else waitingListPrioritary.pop()
+            self.patientServed = waitingListNonPrioritary.pop() if np.random.choice(2, 1,
+                                                                                    p=[config['Probabilities']['serveNonPrioritary'],
+                                                                                       config['Probabilities']['servePrioritary']
+                                                                                       ]) == 0 else waitingListPrioritary.pop()
 
         yield self.hold(env.minutes(30))
         self.patientServed.activate()
@@ -38,6 +45,10 @@ class AppointmentSlots(sim.Component):
     #         self.remainingSlots =
     #         self.day = actualDay
     #         self.remainingSlots -= 1
+
+
+config = configparser.ConfigParser()
+config.read('ConfigFile.properties')
 
 env = sim.Environment(trace=True, time_unit='days')
 
