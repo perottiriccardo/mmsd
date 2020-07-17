@@ -12,7 +12,7 @@ class PatientGenerator(sim.Component):
 class Patient(sim.Component):
     def process(self):
         self.enter(waitingListNonPrioritary) if np.random.choice(2, 1,
-                                                                 p=[config['Probabilities']['patientNonPrioritary'],
+                                                                 p=[1 - float(config['Probabilities']['patientPrioritary']),
                                                                     config['Probabilities']['patientPrioritary']
                                                                     ]) == 0 else self.enter(waitingListPrioritary)
         # TODO Inserire un timeout se appointmentslot è passivo e arriva un paziente in coda
@@ -32,7 +32,7 @@ class AppointmentSlots(sim.Component):
             self.patientServed = waitingListPrioritary.pop()
         else:
             self.patientServed = waitingListNonPrioritary.pop() if np.random.choice(2, 1,
-                                                                                    p=[config['Probabilities']['serveNonPrioritary'],
+                                                                                    p=[1 - float(config['Probabilities']['servePrioritary']),
                                                                                        config['Probabilities']['servePrioritary']
                                                                                        ]) == 0 else waitingListPrioritary.pop()
 
