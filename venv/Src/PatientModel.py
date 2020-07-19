@@ -1,60 +1,100 @@
+# noinspection PyUnresolvedReferences
+from DBConnection.MongoDBConnection import MongoDB
 import salabim as sim
 import numpy as np
 import configparser
 
 class PatientGenerator(sim.Component):
     def process(self):
-        while True:
-            Patient()
-            print(env.now())
-            yield self.hold(sim.Uniform(5, 15, 'hours').sample())
+        with MongoDB() as mongo:
+            while True:
+                for patient in mongo.query("PatientTrace", query={'relative_first_interaction_day': env.now()}, projection={'Pac_Unif_Cod': 1, 'appointments': 1}):
+                    Patient(id=patient['Pac_Unif_Cod'], appointments=patient['appointments'])
+
+                yield self.hold(1)
 
 class Patient(sim.Component):
+    def setup(self, id, appointments):
+        self.id = id
+        self.appointments = appointments
+
     def process(self):
-        self.enter(waitingListNonPrioritary) if np.random.choice(2, 1,
-                                                                 p=[1 - float(config['Probabilities']['patientPrioritary']),
-                                                                    config['Probabilities']['patientPrioritary']
-                                                                    ]) == 0 else self.enter(waitingListPrioritary)
-        # TODO Inserire un timeout se appointmentslot è passivo e arriva un paziente in coda
+        for i in range(len(self.appointments)):
+            Appointment(pateintId=self.id, visitDay=self.appointments[i]['Visit day'], relativeVisitDay=self.appointments[i]['relative_visit_day'])
+
+            if(i < len(self.appointments)-1):
+                yield self.hold(self.appointments[i+1]['relative_waiting_list_entry_date'] - env.now())
+
+        # self.enter(waitingListNonPrioritary) if np.random.choice(2, 1,
+        #                                                          p=[1 - float(config['Probabilities']['patientPrioritary']),
+        #                                                             config['Probabilities']['patientPrioritary']
+        #                                                             ]) == 0 else self.enter(waitingListPrioritary)
+        # # TODO Inserire un timeout se appointmentslot è passivo e arriva un paziente in coda
+        # if slot.ispassive():
+        #     slot.activate()
+        # waitingListPrioritary.add
+        # yield self.passivate()
+
+class Appointment(sim.Component):
+    def setup(self, pateintId, visitDay, relativeVisitDay):
+        self.pateintId = pateintId
+        self.visitDay = visitDay
+        self.relativeVisitDay = relativeVisitDay
+
+    def process(self):
+        self.enter_sorted(appointmentsList, self.visitDay)
+
         if slot.ispassive():
             slot.activate()
 
+        print(f"Appointment schedule -> Patient: {self.pateintId}")
         yield self.passivate()
+        print(f"Appointment complete -> Patient: {self.pateintId}")
 
-class AppointmentSlots(sim.Component):
+class AppointmentSlotExecute(sim.Component):
     def process(self):
-        while not waitingListPrioritary and not waitingListNonPrioritary:
-            yield self.passivate()
+        while True:
+            while not appointmentsList:
+                yield self.passivate()
 
-        if not waitingListPrioritary:
-            self.patientServed = waitingListNonPrioritary.pop()
-        elif not waitingListNonPrioritary:
-            self.patientServed = waitingListPrioritary.pop()
-        else:
-            self.patientServed = waitingListNonPrioritary.pop() if np.random.choice(2, 1,
-                                                                                    p=[1 - float(config['Probabilities']['servePrioritary']),
-                                                                                       config['Probabilities']['servePrioritary']
-                                                                                       ]) == 0 else waitingListPrioritary.pop()
+            appointment = appointmentsList.pop()
 
-        yield self.hold(env.minutes(30))
-        self.patientServed.activate()
+            while appointment.relativeVisitDay > env.now():
+                yield self.hold(1)
 
-    # def availableSlots(self):
-    #     actualDay = int(env.now())
-    #     if actualDay > self.day:
-    #         self.remainingSlots =
-    #         self.day = actualDay
-    #         self.remainingSlots -= 1
+            yield self.hold(env.minutes(30))
+            appointment.activate()
+
+        # while not waitingListPrioritary and not waitingListNonPrioritary:
+        #     yield self.passivate()
+        #
+        # if not waitingListPrioritary:
+        #     self.patientServed = waitingListNonPrioritary.pop()
+        # elif not waitingListNonPrioritary:
+        #     self.patientServed = waitingListPrioritary.pop()
+        # else:
+        #     self.patientServed = waitingListNonPrioritary.pop() if np.random.choice(2, 1,
+        #                                                                             p=[1 - float(config['Probabilities']['servePrioritary']),
+        #                                                                                config['Probabilities']['servePrioritary']
+        #                                                                                ]) == 0 else waitingListPrioritary.pop()
+        #
+        # yield self.hold(env.minutes(30))
+        # self.patientServed.activate()
+
 
 
 config = configparser.ConfigParser()
 config.read('ConfigFile.properties')
 
-env = sim.Environment(trace=True, time_unit='days')
+env = sim.Environment(trace=False, time_unit='days')
 
 PatientGenerator()
-slot = AppointmentSlots()
-waitingListPrioritary = sim.Queue("prioritary")
-waitingListNonPrioritary = sim.Queue("nonPrioritary")
+slot = AppointmentSlotExecute()
+appointmentsList = sim.Queue("appointments")
 
-env.run(till=50)
+# slot = AppointmentSlots()
+# waitingListPrioritary = sim.Queue("prioritary")
+# waitingListNonPrioritary = sim.Queue("nonPrioritary")
+
+# env.speed(env.minutes(1))
+env.run(till=100)
