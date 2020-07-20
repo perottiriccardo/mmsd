@@ -25,16 +25,6 @@ class Patient(sim.Component):
             if(i < len(self.appointments)-1):
                 yield self.hold(self.appointments[i+1]['relative_waiting_list_entry_date'] - env.now())
 
-        # self.enter(waitingListNonPrioritary) if np.random.choice(2, 1,
-        #                                                          p=[1 - float(config['Probabilities']['patientPrioritary']),
-        #                                                             config['Probabilities']['patientPrioritary']
-        #                                                             ]) == 0 else self.enter(waitingListPrioritary)
-        # # TODO Inserire un timeout se appointmentslot è passivo e arriva un paziente in coda
-        # if slot.ispassive():
-        #     slot.activate()
-        # waitingListPrioritary.add
-        # yield self.passivate()
-
 class Appointment(sim.Component):
     def setup(self, pateintId, visitDay, relativeVisitDay):
         self.pateintId = pateintId
@@ -57,29 +47,13 @@ class AppointmentSlotExecute(sim.Component):
             while not appointmentsList:
                 yield self.passivate()
 
-            appointment = appointmentsList.pop()
-
-            while appointment.relativeVisitDay > env.now():
+            while appointmentsList.head().relativeVisitDay > env.now():
                 yield self.hold(1)
+
+            appointment = appointmentsList.pop()
 
             yield self.hold(env.minutes(30))
             appointment.activate()
-
-        # while not waitingListPrioritary and not waitingListNonPrioritary:
-        #     yield self.passivate()
-        #
-        # if not waitingListPrioritary:
-        #     self.patientServed = waitingListNonPrioritary.pop()
-        # elif not waitingListNonPrioritary:
-        #     self.patientServed = waitingListPrioritary.pop()
-        # else:
-        #     self.patientServed = waitingListNonPrioritary.pop() if np.random.choice(2, 1,
-        #                                                                             p=[1 - float(config['Probabilities']['servePrioritary']),
-        #                                                                                config['Probabilities']['servePrioritary']
-        #                                                                                ]) == 0 else waitingListPrioritary.pop()
-        #
-        # yield self.hold(env.minutes(30))
-        # self.patientServed.activate()
 
 
 
@@ -92,9 +66,4 @@ PatientGenerator()
 slot = AppointmentSlotExecute()
 appointmentsList = sim.Queue("appointments")
 
-# slot = AppointmentSlots()
-# waitingListPrioritary = sim.Queue("prioritary")
-# waitingListNonPrioritary = sim.Queue("nonPrioritary")
-
-# env.speed(env.minutes(1))
 env.run(till=100)
