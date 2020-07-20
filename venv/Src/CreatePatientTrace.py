@@ -21,8 +21,7 @@ with MongoDB() as mongo:
                 appointment['Waiting list entry date'] = datetime.strptime(appointment['Waiting list entry date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
                 appointment['relative_waiting_list_entry_date'] = (max-min).days
 
-                #TODO togliere anche appuntamenti con visit day precedente a waiting list entry date
-                if appointment['relative_waiting_list_entry_date'] < 0:
+                if appointment['relative_waiting_list_entry_date'] < 0 or appointment['Visit day'] < appointment['Waiting list entry date']:
                     continue
                 if firstAppointment:
                     patient['relative_first_interaction_day'] = (max-min).days
