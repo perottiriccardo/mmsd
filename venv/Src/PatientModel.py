@@ -64,9 +64,8 @@ config.read('ConfigFile.properties')
 env = sim.Environment(trace=False, time_unit='days')
 
 PatientGenerator()
-# Creata la risorsa dottore con una capacità di 10
-# TODO stimare il numero di dottori
-doctors = sim.Resource('Doctor', capacity=10)
+# Creata la risorsa dottore con una capacità di 4
+doctors = sim.Resource('Doctor', capacity=4)
 
 env.run(till=100)
 
