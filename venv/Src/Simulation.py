@@ -65,7 +65,7 @@ env = sim.Environment(trace=False, time_unit='days')
 
 PatientGenerator()
 # Creata la risorsa dottore con una capacità di 4
-doctors = sim.Resource('Doctor', capacity=4)
+doctors = sim.Resource('Doctor', capacity=5)
 
 env.run(till=100)
 
