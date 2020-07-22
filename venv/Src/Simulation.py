@@ -3,6 +3,7 @@ from DBConnection.MongoDBConnection import MongoDB
 import salabim as sim
 import numpy as np
 import configparser
+import math
 
 # Generatore di pazienti
 class PatientGenerator(sim.Component):
@@ -48,6 +49,12 @@ class Appointment(sim.Component):
         else:
             # Attendo fino al giorno dell'appuntamento
             yield self.hold(self.info['relative_visit_day'] - env.now())
+
+            if env.now() in nAppointmentDone:
+                nAppointmentDone[math.floor(env.now())] += 1
+            else:
+                nAppointmentDone[math.floor(env.now())] = 0
+
             # Richiedo una risorsa dottore
             yield self.request(doctors)
             # Quando il dottore è disponibile faccio la visita di 15 minuti
@@ -55,18 +62,26 @@ class Appointment(sim.Component):
 
             # Rilascio la risorsa dottore
             self.release(doctors)
+
+            nAppointmentDone[math.floor(env.now())] -= 1
             print(f"Appointment complete {self.nAppointment} -> Patient: {self.pateintId}")
 
 
-config = configparser.ConfigParser()
-config.read('ConfigFile.properties')
+# config = configparser.ConfigParser()
+# config.read('ConfigFile.properties')
+
+nAppointmentDone = {}
 
 env = sim.Environment(trace=False, time_unit='days')
 
 PatientGenerator()
 # Creata la risorsa dottore con una capacità di 4
-doctors = sim.Resource('Doctor', capacity=5)
+doctors = sim.Resource('Doctor', capacity=4)
 
-env.run(till=100)
+env.run(till=2200)
 
 doctors.print_statistics()
+
+for app in nAppointmentDone:
+    if nAppointmentDone[app]>0:
+        print(nAppointmentDone[app])
