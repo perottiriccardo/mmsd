@@ -50,17 +50,25 @@ class Appointment(sim.Component):
         else:
             # Attendo fino al giorno dell'appuntamento
             yield self.hold(self.info['relative_visit_day'] - env.now())
-            # Richiedo una risorsa dottore
-            yield self.request(doctors)
-            # Quando il dottore è disponibile faccio la visita di 15 minuti
-            yield self.hold(env.minutes(15))
-
-            # Rilascio la risorsa dottore
-            self.release(doctors)
+            # Richiedo una risorsa slot
+            yield self.request(slots)
 
             if self.info['Visit status'] == 'NoShowUp':
                 print(f"Appointment no show up {self.nAppointment} -> Patient: {self.pateintId}")
+
+                # Tengo lo slot occupato per 15 minuti
+                yield self.hold(env.minutes(15))
+                self.release(slots)
             else:
+                # Richiedo una risorsa dottore
+                yield self.request(doctors)
+                # Quando il dottore è disponibile faccio la visita di 15 minuti
+                yield self.hold(env.minutes(15))
+
+                # Rilascio la risorsa dottore
+                self.release(doctors)
+                self.release(slots)
+
                 print(f"Appointment done {self.nAppointment} -> Patient: {self.pateintId}")
 
 
@@ -70,9 +78,12 @@ class Appointment(sim.Component):
 env = sim.Environment(trace=False, time_unit='days')
 
 PatientGenerator()
+# Creata la risorsa slot con una capacità di 6
+slots = sim.Resource('Slot', capacity=6)
 # Creata la risorsa dottore con una capacità di 6
 doctors = sim.Resource('Doctor', capacity=6)
 
-env.run(till=2200)
+env.run(till=500)
 
+slots.print_statistics()
 doctors.print_statistics()
