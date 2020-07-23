@@ -34,7 +34,7 @@ class Patient(sim.Component):
                 # Il paziente attende la data di waiting list del successivo appuntamento per creare il nuovo appuntamento
                 yield self.hold(self.appointments[i+1]['relative_waiting_list_entry_date'] - env.now())
 
-class Appointment(sim.Component):
+class Appointment(sim.Component): # TODO Ora esatta dello slot? Es giorno 5.026
     def setup(self, nAppointment, pateintId, info):
         self.nAppointment = nAppointment
         self.pateintId = pateintId
@@ -63,7 +63,7 @@ class Appointment(sim.Component):
                 # Richiedo una risorsa dottore
                 yield self.request(doctors)
                 # Quando il dottore è disponibile faccio la visita di 15 minuti
-                yield self.hold(env.minutes(15))
+                yield self.hold(env.minutes(15)) # TODO random tra 10/15/20 minuti?
 
                 # Rilascio la risorsa dottore
                 self.release(doctors)
