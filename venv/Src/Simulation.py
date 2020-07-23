@@ -58,7 +58,10 @@ class Appointment(sim.Component):
             # Rilascio la risorsa dottore
             self.release(doctors)
 
-            print(f"Appointment complete {self.nAppointment} -> Patient: {self.pateintId}")
+            if self.info['Visit status'] == 'NoShowUp':
+                print(f"Appointment no show up {self.nAppointment} -> Patient: {self.pateintId}")
+            else:
+                print(f"Appointment done {self.nAppointment} -> Patient: {self.pateintId}")
 
 
 # config = configparser.ConfigParser()
