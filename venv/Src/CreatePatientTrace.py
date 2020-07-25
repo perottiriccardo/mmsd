@@ -20,7 +20,7 @@ with MongoDB() as mongo:
                 max = datetime.fromtimestamp(datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp())
 
                 appointment['Visit day'] = floor_dt(datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000, 300000)
-                appointment['relative_visit_day'] = (max-min).days
+                appointment['relative_visit_day'] = (max-min).days + int((max.hour*60 + max.minute)/5*3.47)/1000 # 5 = minuti, 3.47 = 5 minuti nella simulazione
 
                 max = datetime.fromtimestamp(datetime.strptime(appointment['Waiting list entry date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp())
 

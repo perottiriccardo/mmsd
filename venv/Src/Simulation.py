@@ -45,7 +45,7 @@ class Appointment(sim.Component): # TODO Ora esatta dello slot? Es giorno 5.026
 
         if self.info['Visit status'] == 'Cancelled Pat' or self.info['Visit status'] == 'Cancelled HS':
             # Attendo un valore tra 0 e i giorni che mancano alla visita per cancellare l'appuntamento
-            yield self.hold(sim.Uniform(0, self.info['relative_visit_day'] - env.now()))
+            yield self.hold(sim.Uniform(0, int(self.info['relative_visit_day'] - env.now())))
             print(f"Appointment cancelled {self.nAppointment} -> Patient: {self.pateintId}")
         else:
             # Attendo fino al giorno dell'appuntamento
@@ -83,7 +83,7 @@ slots = sim.Resource('Slot', capacity=6)
 # Creata la risorsa dottore con una capacità di 6
 doctors = sim.Resource('Doctor', capacity=6)
 
-env.run(till=500)
+env.run(till=100)
 
 slots.print_statistics()
 doctors.print_statistics()
