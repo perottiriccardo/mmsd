@@ -43,7 +43,7 @@ with MongoDB() as mongo:
     appointmentReminders = ["Phone", "SMS", "Phone+SMS", "Other", "None"]
 
     #Conta il numero di appuntamenti contemporanei per determinare il numero di dottori
-    for i in range(1,17):
+    for i in range(1,40):
         groups = mongo.db["PatientTrace"].aggregate([
             {"$unwind": "$appointments"},
             {"$match":
