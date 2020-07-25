@@ -33,7 +33,7 @@ def appointmentPerWeekDay(mongoInstance, day):
     ])
 
 def doctorsPerSlotMean(mongoInstance, slotM, startH, endH):
-   return statistics.mean([int(g["total"] / (((endH-startH)*60)/slotM)) for g in appointmentPerDay(mongoInstance)])
+   return statistics.mean([g["total"] / (((endH-startH)*60)/slotM) for g in appointmentPerDay(mongoInstance)])
 
 with MongoDB() as mongo:
     visitTypes = ["First", "Revision", "Non-presential", "Special"]
@@ -42,6 +42,7 @@ with MongoDB() as mongo:
     appointmentOrigins = ["Family doctor", "Specialist doctor", "Other"]
     appointmentReminders = ["Phone", "SMS", "Phone+SMS", "Other", "None"]
 
+    #Conta il numero di appuntamenti contemporanei per determinare il numero di dottori
     for i in range(1,17):
         groups = mongo.db["Appointment_Data"].aggregate([
             {"$match":
@@ -72,7 +73,7 @@ with MongoDB() as mongo:
     for day in days:
         print(
             f"Mean doctors value for each week day"
-            f"{statistics.mean([int(g['total'] / (((21 - 8) * 60) / 15)) for g in appointmentPerWeekDay(mongo, day)])}")
+            f"{statistics.mean([g['total'] / (((21 - 8) * 60) / 15) for g in appointmentPerWeekDay(mongo, day)])}")
 
     for vtype in visitTypes:
         docsRate = round(countDocs(mongo, "Appointment_Data", {"Visit type": vtype}), 3)
