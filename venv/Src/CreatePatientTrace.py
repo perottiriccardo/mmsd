@@ -32,8 +32,7 @@ with MongoDB() as mongo:
                 if firstAppointment:
                     patient['relative_first_interaction_day'] = (max-min).days
                     firstAppointment = False
-            except Exception as e:
-                print(str(e))
+            except
                 continue
             patient['appointments'].append(appointment)
 
