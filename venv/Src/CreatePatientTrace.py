@@ -3,6 +3,10 @@ import pymongo
 from DBConnection.MongoDBConnection import MongoDB
 from datetime import datetime
 
+
+def floor_dt(dt, delta):
+    return dt - (dt % delta)
+
 with MongoDB() as mongo:
     trace = []
     i = 0
@@ -15,7 +19,7 @@ with MongoDB() as mongo:
                 min = datetime.fromtimestamp(1325372400)
                 max = datetime.fromtimestamp(datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp())
 
-                appointment['Visit day'] = datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
+                appointment['Visit day'] = floor_dt(datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000, 300000)
                 appointment['relative_visit_day'] = (max-min).days
 
                 max = datetime.fromtimestamp(datetime.strptime(appointment['Waiting list entry date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp())
@@ -28,7 +32,8 @@ with MongoDB() as mongo:
                 if firstAppointment:
                     patient['relative_first_interaction_day'] = (max-min).days
                     firstAppointment = False
-            except:
+            except Exception as e:
+                print(str(e))
                 continue
             patient['appointments'].append(appointment)
 
