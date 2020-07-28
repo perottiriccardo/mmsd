@@ -8,12 +8,11 @@ import image
 
 # Generatore di pazienti
 class PatientGenerator(sim.Component):
-    prova = ""
+
     def process(self):
         with MongoDB() as mongo:
             while True:
-                self.prova = str(env.now())
-                print(f"Day: {env.now()}")
+                #print(f"Day: {env.now()}")
                 # Vengono selezionati i pazienti dal DB che hanno interagito per la prima volta con il sistema al giorno corrente
                 for patient in mongo.query("PatientTrace", query={'relative_first_interaction_day': env.now()}, projection={'Pac_Unif_Cod': 1, 'appointments': 1}):
                     # Il paziente viene creato con il suo ID e i suoi appuntamenti
@@ -28,7 +27,7 @@ class Patient(sim.Component):
         self.appointments = appointments
 
     def process(self):
-        print(f"New patient: {self.id}")
+        #print(f"New patient: {self.id}")
 
         for i in range(len(self.appointments)):
             # Viene creato un appuntamento nel sistema
@@ -45,20 +44,24 @@ class Appointment(sim.Component):
         self.info = info
 
     def process(self):
-        print(f"Appointment schedule {self.nAppointment} -> Patient: {self.pateintId}")
+        #print(f"Appointment schedule {self.nAppointment} -> Patient: {self.pateintId}")
 
         if self.info['Visit status'] == 'Cancelled Pat' or self.info['Visit status'] == 'Cancelled HS':
             # Attendo un valore tra 0 e i giorni che mancano alla visita per cancellare l'appuntamento
             yield self.hold(sim.Uniform(0, int(self.info['relative_visit_day'] - env.now())))
-            print(f"Appointment cancelled {self.nAppointment} -> Patient: {self.pateintId}")
+            #print(f"Appointment cancelled {self.nAppointment} -> Patient: {self.pateintId}")
         else:
             # Attendo fino al giorno dell'appuntamento
             yield self.hold(self.info['relative_visit_day'] - env.now())
+
+            if str(env.now())[-2:] == ".0":
+                yield self.hold(sim.Uniform(8, 19, "hours"))
+
             # Richiedo una risorsa slot
             yield self.request(slots)
 
             if self.info['Visit status'] == 'NoShowUp':
-                print(f"Appointment no show up {self.nAppointment} -> Patient: {self.pateintId}")
+                #print(f"Appointment no show up {self.nAppointment} -> Patient: {self.pateintId}")
 
                 # Tengo lo slot occupato per 15 minuti
                 yield self.hold(env.minutes(15))
@@ -73,26 +76,26 @@ class Appointment(sim.Component):
                 self.release(doctors)
                 self.release(slots)
 
-                print(f"Appointment done {self.nAppointment} -> Patient: {self.pateintId}")
+                #print(f"Appointment done {self.nAppointment} -> Patient: {self.pateintId}")
 
 
 # config = configparser.ConfigParser()
 # config.read('ConfigFile.properties')
 
-timeSlot = 15
+timeSlot = 20
 #for ts in (5,10,15,20):
 env = sim.Environment(trace=False, time_unit='days')
 env.animate(True)
 #timeSlot = ts
 p = PatientGenerator()
 # Creata la risorsa slot con una capacità di 6
-slots = sim.Resource('Slot', capacity=6)
+slots = sim.Resource('Slot', capacity=7)
 # Creata la risorsa dottore con una capacità di 6
-doctors = sim.Resource('Doctor', capacity=6)
+doctors = sim.Resource('Doctor', capacity=7)
 
 env.modelname("Patients not show up simulation")
 env.background_color("20%gray")
-env.speed(0.2)
+env.speed(100)
 
 sim.AnimateQueue(slots.requesters(), x=30, y=650, title='Requester queue', direction='e', id='blue')
 sim.AnimateQueue(slots.claimers(), x=30, y=580, title='Claimers queue', direction='e', id='blue')
@@ -103,7 +106,9 @@ sim.AnimateMonitor(slots.occupancy, x=10, y=320, width=950, height=50, horizonta
 sim.AnimateText(text=lambda: slots.print_info(as_str=True), x=10, y=270,
                 text_anchor='nw', font='narrow', fontsize=14)
 
-env.run(till=100)
+env.run(till=500)
 
 slots.print_statistics()
 doctors.print_statistics()
+
+#3.8 clamed quantity desiderata
