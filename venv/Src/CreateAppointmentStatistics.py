@@ -2,6 +2,7 @@
 from DBConnection.MongoDBConnection import MongoDB
 
 import statistics
+from datetime import datetime
 
 
 def countDocs(mongoInstance, collectionName, parameters):
@@ -83,65 +84,24 @@ def doctorsPerSlotMeanMorning(mongoInstance, slotM, startH, endH):
 def doctorsPerSlotMeanAfternoon(mongoInstance, slotM, startH, endH):
    return statistics.mean([g["total"] / (((endH-startH)*60)/slotM) for g in appointmentPerDayAfternoon(mongoInstance)])
 
-with MongoDB() as mongo:
-    #Conta il numero di appuntamenti contemporanei per determinare il numero di dottori
-    # for i in range(1,40):
-    #     groups = mongo.db["PatientTrace"].aggregate([
-    #         {"$unwind": "$appointments"},
-    #         {"$match":
-    #             {
-    #                 "$and": [
-    #                     {"$or": [{"appointments.Visit status": "Done"}, {"appointments.Visit status": "NoShowUp"}]}
-    #                 ]
-    #             }
-    #         },
-    #         {"$group": {"_id": "$appointments.Visit day", "total": {"$sum": 1}}},
-    #         {"$sort": {"total": 1}}
-    #     ])
-    #
-    #     print(f"{i} - {sum(el['total'] == i for el in groups)}")
-
-    for i in range(1,40):
-        groups = mongo.db["PatientTrace"].aggregate([
+def appointmentContemporanei(mongoInstance, start, end):
+    tot = 0
+    for i in range(1, 19):
+        groups = mongoInstance.db["PatientTrace"].aggregate([
             {"$unwind": "$appointments"},
             {"$match":
-                {
-                    "$and": [
-                        {"$or": [{"appointments.Visit status": "Done"}, {"appointments.Visit status": "NoShowUp"}]}
-                    ]
-                }
-            },
+                 {"$or": [{"appointments.Visit status": "Done"}, {"appointments.Visit status": "NoShowUp"}]}
+             },
             {"$group": {"_id": "$appointments.Visit day", "total": {"$sum": 1}}},
             {"$sort": {"total": 1}}
         ])
-        print(f"{i} - {sum([1 for el in groups if el['total'] == i and (7 <= ((el['_id'] / (1000 * 60 * 60)) % 24) + 1 < 13)])}")
 
-    # print(f"Appointment per day mean: {statistics.mean([g['total'] for g in appointmentPerDay(mongo)])}")
-    # #Considerando slot di diversi minutaggi
-    # slots = [5,10,15,20,25,30]
-    # for slot in slots:
-    #     print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMean(mongo, slot, 8, 21))} doctors")
+        s = sum([1 for el in groups if el['total'] == i and (start <= datetime.fromtimestamp(el['_id'] / 1000).hour < end)])
+        tot += (s * i)
+        print(f"{i} - {s}")
+    print(tot)
 
-    #slots = [5,10,15,20,25,30]
-    #for slot in slots:
-    #    print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMeanMorning(mongo, slot, 8, 14))} doctors")
-
-    #for slot in slots:
-    #    print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMeanAfternoon(mongo, slot, 14, 22))} doctors")
-    #
-    # #Data fissata per riscontro slot durata
-    # # for a in mongo.query("Appointment_Data", query={ "Visit day" : {"$regex" : "2017-03-21.*"}}, projection={"Visit day": 1}).sort("Visit day", 1):
-    # #     print(a["Visit day"][11:])
-    #
-    # days = ["Mond", "Tuesd", "Wedn", "Thursd", "Friday"]
-    # for day in days:
-    #     print(
-    #         f"Mean doctors value for each week day"
-    #         f"{statistics.mean([g['total'] / (((21 - 8) * 60) / 15) for g in appointmentPerWeekDay(mongo, day)])}")
-    #
-
-
-def beforeAndAfter14():
+def totalAppointmentBeforeAndAfter14():
     sumBefore14 = 0
     sumAfter14 = 0
     for i in range(8, 22):
@@ -242,3 +202,34 @@ def generalStats():
                   str(docsRate) + "%")
             sum += docsRate
         print("----------------------- Tot: " + str(round(sum,3)) + " %-----------------------")
+
+with MongoDB() as mongo:
+    appointmentContemporanei(mongo, 14, 22)
+    appointmentContemporanei(mongo, 8, 14)
+
+
+    # print(f"Appointment per day mean: {statistics.mean([g['total'] for g in appointmentPerDay(mongo)])}")
+    # #Considerando slot di diversi minutaggi
+    # slots = [5,10,15,20,25,30]
+    # for slot in slots:
+    #     print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMean(mongo, slot, 8, 21))} doctors")
+
+    #slots = [5,10,15,20,25,30]
+    #for slot in slots:
+    #    print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMeanMorning(mongo, slot, 8, 14))} doctors")
+
+    #for slot in slots:
+    #    print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMeanAfternoon(mongo, slot, 14, 22))} doctors")
+    #
+    # #Data fissata per riscontro slot durata
+    # # for a in mongo.query("Appointment_Data", query={ "Visit day" : {"$regex" : "2017-03-21.*"}}, projection={"Visit day": 1}).sort("Visit day", 1):
+    # #     print(a["Visit day"][11:])
+    #
+    # days = ["Mond", "Tuesd", "Wedn", "Thursd", "Friday"]
+    # for day in days:
+    #     print(
+    #         f"Mean doctors value for each week day"
+    #         f"{statistics.mean([g['total'] / (((21 - 8) * 60) / 15) for g in appointmentPerWeekDay(mongo, day)])}")
+    #
+
+
