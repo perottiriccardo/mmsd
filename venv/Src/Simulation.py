@@ -55,7 +55,7 @@ class Appointment(sim.Component):
             yield self.hold(self.info['relative_visit_day'] - env.now())
 
             if str(env.now())[-2:] == ".0":
-                yield self.hold(sim.Uniform(8, 19, "hours"))
+                yield self.hold(sim.Uniform(14, 19, "hours"))
 
             # Richiedo una risorsa slot
             yield self.request(slots)
