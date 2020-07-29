@@ -16,6 +16,9 @@ with MongoDB() as mongo:
         for appointment in mongo.query("Appointment_Data", query = {'Pac_Unif_Cod': patient['Pac_Unif_Cod']}, projection = {'_id': 0, 'Month': 0, 'Week day': 0, 'Hour': 0, 'Pac_Unif_Cod': 0, 'Days in waiting list': 0})\
                 .sort([('Waiting list entry date', pymongo.ASCENDING), ('Visit day', pymongo.ASCENDING)]):
             try:
+                if appointment['Visit status'] == 'Other':
+                    continue
+                    
                 min = datetime.fromtimestamp(1325372400)
                 max = datetime.fromtimestamp(datetime.strptime(appointment['Visit day'], "%Y-%m-%dT%H:%M:%S.%f").timestamp())
 
