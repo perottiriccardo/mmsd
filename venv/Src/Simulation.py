@@ -64,7 +64,7 @@ class Appointment(sim.Component):
                 #print(f"Appointment no show up {self.nAppointment} -> Patient: {self.pateintId}")
 
                 # Tengo lo slot occupato per 15 minuti
-                yield self.hold(env.minutes(15))
+                yield self.hold(env.minutes(timeSlot))
                 self.release(slots)
             else:
                 # Richiedo una risorsa dottore
