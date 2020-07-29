@@ -101,9 +101,9 @@ class DepartmentCapacity(sim.Component):
                 yield self.hold(env.hours(6))
 
                 exceedRequesters += len(slots.requesters())
-                print(exceedRequesters)
-                slots.set_capacity(2)
-                doctors.set_capacity(2)
+                print(f"{int(env.now())} -> {len(slots.requesters())} -> total {exceedRequesters}")
+                slots.set_capacity(3)
+                doctors.set_capacity(3)
                 yield self.hold(env.hours(8))
 
                 slots.set_capacity(0)
