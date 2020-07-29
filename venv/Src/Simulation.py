@@ -78,6 +78,32 @@ class Appointment(sim.Component):
 
                 #print(f"Appointment done {self.nAppointment} -> Patient: {self.pateintId}")
 
+class DepartmentCapacity(sim.Component):
+    def process(self):
+        while True:
+            if int(math.ceil(env.now())) % 7 == 0 or int(math.ceil(env.now())) % 7 == 6:
+                slots.set_capacity(0)
+                doctors.set_capacity(0)
+                yield self.hold(1)
+            else:
+                slots.set_capacity(0)
+                doctors.set_capacity(0)
+                yield self.hold(env.hours(8))
+
+                slots.set_capacity(15)
+                doctors.set_capacity(15)
+                yield self.hold(env.hours(6))
+
+                slots.set_capacity(2)
+                doctors.set_capacity(2)
+                yield self.hold(env.hours(8))
+
+                slots.set_capacity(0)
+                doctors.set_capacity(0)
+                yield self.hold(env.hours(2))
+
+
+
 
 # config = configparser.ConfigParser()
 # config.read('ConfigFile.properties')
@@ -87,15 +113,16 @@ timeSlot = 20
 env = sim.Environment(trace=False, time_unit='days')
 env.animate(True)
 #timeSlot = ts
-p = PatientGenerator()
+PatientGenerator()
 # Creata la risorsa slot con una capacità di 6
-slots = sim.Resource('Slot', capacity=7)
+slots = sim.Resource('Slot', capacity=15)
 # Creata la risorsa dottore con una capacità di 6
-doctors = sim.Resource('Doctor', capacity=7)
+doctors = sim.Resource('Doctor', capacity=15)
+DepartmentCapacity()
 
 env.modelname("Patients not show up simulation")
 env.background_color("20%gray")
-env.speed(100)
+env.speed(0.4)
 
 sim.AnimateQueue(slots.requesters(), x=30, y=650, title='Requester queue', direction='e', id='blue')
 sim.AnimateQueue(slots.claimers(), x=30, y=580, title='Claimers queue', direction='e', id='blue')
@@ -106,7 +133,7 @@ sim.AnimateMonitor(slots.occupancy, x=10, y=320, width=950, height=50, horizonta
 sim.AnimateText(text=lambda: slots.print_info(as_str=True), x=10, y=270,
                 text_anchor='nw', font='narrow', fontsize=14)
 
-env.run(till=500)
+env.run(till=10)
 
 slots.print_statistics()
 doctors.print_statistics()
