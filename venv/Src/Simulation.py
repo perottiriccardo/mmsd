@@ -8,7 +8,6 @@ import image
 
 # Generatore di pazienti
 class PatientGenerator(sim.Component):
-
     def process(self):
         with MongoDB() as mongo:
             while True:
@@ -44,12 +43,16 @@ class Appointment(sim.Component):
         self.info = info
 
     def process(self):
+        global nAppointments, noShowUp, done, cancelled
+
         #print(f"Appointment schedule {self.nAppointment} -> Patient: {self.pateintId}")
+        nAppointments += 1
 
         if self.info['Visit status'] == 'Cancelled Pat' or self.info['Visit status'] == 'Cancelled HS':
             # Attendo un valore tra 0 e i giorni che mancano alla visita per cancellare l'appuntamento
             yield self.hold(sim.Uniform(0, int(self.info['relative_visit_day'] - env.now())))
             #print(f"Appointment cancelled {self.nAppointment} -> Patient: {self.pateintId}")
+            cancelled += 1
         else:
             # Attendo fino al giorno dell'appuntamento
             yield self.hold(self.info['relative_visit_day'] - env.now())
@@ -66,6 +69,7 @@ class Appointment(sim.Component):
                 # Tengo lo slot occupato per 15 minuti
                 yield self.hold(env.minutes(timeSlot))
                 self.release(slots)
+                noShowUp +=1
             else:
                 # Richiedo una risorsa dottore
                 yield self.request(doctors)
@@ -75,11 +79,13 @@ class Appointment(sim.Component):
                 # Rilascio la risorsa dottore
                 self.release(doctors)
                 self.release(slots)
+                done +=1
 
                 #print(f"Appointment done {self.nAppointment} -> Patient: {self.pateintId}")
 
 class DepartmentCapacity(sim.Component):
     def process(self):
+        exceedRequesters = 0
         while True:
             if int(math.ceil(env.now())) % 7 == 0 or int(math.ceil(env.now())) % 7 == 6:
                 slots.set_capacity(0)
@@ -90,10 +96,12 @@ class DepartmentCapacity(sim.Component):
                 doctors.set_capacity(0)
                 yield self.hold(env.hours(8))
 
-                slots.set_capacity(15)
-                doctors.set_capacity(15)
+                slots.set_capacity(11)
+                doctors.set_capacity(11)
                 yield self.hold(env.hours(6))
 
+                exceedRequesters += len(slots.requesters())
+                print(exceedRequesters)
                 slots.set_capacity(2)
                 doctors.set_capacity(2)
                 yield self.hold(env.hours(8))
@@ -105,6 +113,11 @@ class DepartmentCapacity(sim.Component):
 
 
 
+nAppointments = 0
+noShowUp = 0
+done = 0
+cancelled = 0
+
 # config = configparser.ConfigParser()
 # config.read('ConfigFile.properties')
 
@@ -115,9 +128,9 @@ env.animate(True)
 #timeSlot = ts
 PatientGenerator()
 # Creata la risorsa slot con una capacità di 6
-slots = sim.Resource('Slot', capacity=15)
+slots = sim.Resource('Slot', capacity=11)
 # Creata la risorsa dottore con una capacità di 6
-doctors = sim.Resource('Doctor', capacity=15)
+doctors = sim.Resource('Doctor', capacity=11)
 DepartmentCapacity()
 
 env.modelname("Patients not show up simulation")
@@ -133,9 +146,14 @@ sim.AnimateMonitor(slots.occupancy, x=10, y=320, width=950, height=50, horizonta
 sim.AnimateText(text=lambda: slots.print_info(as_str=True), x=10, y=270,
                 text_anchor='nw', font='narrow', fontsize=14)
 
-env.run(till=10)
+env.run(till=2200)
 
 slots.print_statistics()
 doctors.print_statistics()
+
+print(f"Appointments: {nAppointments}")
+print(f"NoShowUp: {noShowUp/nAppointments*100}")
+print(f"Done: {done/nAppointments*100}")
+print(f"Cancelled: {cancelled/nAppointments*100}")
 
 #3.8 clamed quantity desiderata
