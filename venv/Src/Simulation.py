@@ -119,10 +119,10 @@ timeSlot = 15
 env = sim.Environment(trace=False, time_unit='days')
 env.animate(True)
 PatientGenerator()
-# Creata la risorsa slot con una capacità di 6
-slots = sim.Resource('Slot', capacity=11)
-# Creata la risorsa dottore con una capacità di 6
-doctors = sim.Resource('Doctor', capacity=11)
+# Creata la risorsa slot con una capacità variabile
+slots = sim.Resource('Slot')
+# Creata la risorsa dottore con una capacità variabile
+doctors = sim.Resource('Doctor')
 DepartmentCapacity()
 
 env.modelname("Patients not show up simulation")
