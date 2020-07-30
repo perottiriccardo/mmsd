@@ -2,6 +2,7 @@
 from DBConnection.MongoDBConnection import MongoDB
 
 import statistics
+import math
 from datetime import datetime
 
 
@@ -14,6 +15,20 @@ def appointmentPerDay(mongoInstance):
     return mongoInstance.db["Appointment_Data"].aggregate([
         {"$match":
              {"$or": [{"Visit status": "Done"}, {"Visit status": "NoShowUp"}]}
+         },
+        {"$group": {"_id": {"$substr": ["$Visit day", 0, 10]}, "total": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+    ])
+
+def appointmentPerDayPerYear(mongoInstance,year):
+    return mongoInstance.db["Appointment_Data"].aggregate([
+        {"$match":
+             {"$and" : [
+                 {"$or": [{"Visit status": "Done"}, {"Visit status": "NoShowUp"}]},
+                 {"Visit day" : { "$regex" : f"{year}.*"}}
+             ]
+              }
+
          },
         {"$group": {"_id": {"$substr": ["$Visit day", 0, 10]}, "total": {"$sum": 1}}},
         {"$sort": {"_id": 1}}
@@ -204,23 +219,25 @@ def generalStats():
         print("----------------------- Tot: " + str(round(sum,3)) + " %-----------------------")
 
 with MongoDB() as mongo:
-    appointmentContemporanei(mongo, 14, 22)
-    appointmentContemporanei(mongo, 8, 14)
+    #appointmentContemporanei(mongo, 14, 22)
+    #appointmentContemporanei(mongo, 8, 14)
 
-
+    # for year in range(2012,2018):
+    #     print(year)
+    #     print(f"Appointment per day mean: {statistics.mean([g['total'] for g in appointmentPerDayPerYear(mongo,year)])}")
     # print(f"Appointment per day mean: {statistics.mean([g['total'] for g in appointmentPerDay(mongo)])}")
     # #Considerando slot di diversi minutaggi
     # slots = [5,10,15,20,25,30]
     # for slot in slots:
     #     print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMean(mongo, slot, 8, 21))} doctors")
 
-    #slots = [5,10,15,20,25,30]
-    #for slot in slots:
-    #    print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMeanMorning(mongo, slot, 8, 14))} doctors")
+    slots = [5,10,15,20,25,30]
+    for slot in slots:
+       print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMeanMorning(mongo, slot, 8, 14))} doctors")
 
-    #for slot in slots:
-    #    print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMeanAfternoon(mongo, slot, 14, 22))} doctors")
-    #
+    for slot in slots:
+       print(f"{slot} minutes slot - {math.ceil(doctorsPerSlotMeanAfternoon(mongo, slot, 14, 22))} doctors")
+
     # #Data fissata per riscontro slot durata
     # # for a in mongo.query("Appointment_Data", query={ "Visit day" : {"$regex" : "2017-03-21.*"}}, projection={"Visit day": 1}).sort("Visit day", 1):
     # #     print(a["Visit day"][11:])
