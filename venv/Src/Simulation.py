@@ -92,11 +92,6 @@ class Appointment(sim.Component):
     def process(self):
         global nAppointments, visitStatus, patientDict
 
-        if self.patientId not in patientDict:
-            patientDict[self.patientId] = []
-
-        patientDict[self.patientId].append(int(env.now()))
-
         #print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
         nAppointments += 1
 
@@ -138,6 +133,11 @@ class Appointment(sim.Component):
                 visitStatus[self.info['Visit status']] +=1
 
                 #print(f"Appointment done {self.nAppointment} -> Patient: {self.patientId}")
+
+        if self.patientId not in patientDict:
+            patientDict[self.patientId] = []
+
+        patientDict[self.patientId].append((int(env.now()), self.info['Visit status'][:1]))
 
 class DepartmentCapacity(sim.Component):
     def process(self):
@@ -219,5 +219,9 @@ print(f"None: {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminde
 with MongoDB() as mongo:
     for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'elapsed_time_between_appointments': 1}):
         for i in range(len(patientStatistics['elapsed_time_between_appointments'])):
-            if patientDict[patientStatistics['pac_unif_cod']][i+1] - patientDict[patientStatistics['pac_unif_cod']][i] != patientStatistics['elapsed_time_between_appointments'][i]['elapsed_time'] + 1:
-                print(f"{patientStatistics['pac_unif_cod']} -> {i}")
+            if (patientDict[patientStatistics['pac_unif_cod']][i+1][0] - patientDict[patientStatistics['pac_unif_cod']][i][0]) != patientStatistics['elapsed_time_between_appointments'][i]['elapsed_time']:
+
+                if patientDict[patientStatistics['pac_unif_cod']][i][1] != "C" and patientDict[patientStatistics['pac_unif_cod']][i+1][1] != "C":
+                    print(f"{patientStatistics['pac_unif_cod']} "
+                          f"{patientDict[patientStatistics['pac_unif_cod']][i][1]} - {patientDict[patientStatistics['pac_unif_cod']][i+1][1]}"
+                          f"-> {i} -- DIFF: {patientDict[patientStatistics['pac_unif_cod']][i+1][0] - patientDict[patientStatistics['pac_unif_cod']][i][0] - patientStatistics['elapsed_time_between_appointments'][i]['elapsed_time']}")

@@ -1,6 +1,6 @@
 # noinspection PyUnresolvedReferences
 from DBConnection.MongoDBConnection import MongoDB
-from datetime import datetime
+from datetime import datetime, date
 
 with MongoDB() as mongo:
     statisticsList = []
@@ -39,7 +39,7 @@ with MongoDB() as mongo:
             dict = {}
             dict["first_appointment"] = trace['appointments'][i]['Visit day']
             dict["second_appointment"] = trace['appointments'][i+1]['Visit day']
-            dict["elapsed_time"] = (datetime.fromtimestamp(int(dict["second_appointment"]/1000)) - datetime.fromtimestamp(int(dict["first_appointment"]/1000))).days
+            dict["elapsed_time"] = (date.fromtimestamp(int(dict["second_appointment"]/1000)) - date.fromtimestamp(int(dict["first_appointment"]/1000))).days
             statistics['elapsed_time_between_appointments'].append(dict)
 
         statisticsList.append(statistics)
