@@ -130,19 +130,20 @@ class Appointment(sim.Component):
                 # Rilascio la risorsa dottore
                 self.release(doctors)
                 self.release(slots)
+
                 visitStatus[self.info['Visit status']] +=1
 
                 #print(f"Appointment done {self.nAppointment} -> Patient: {self.patientId}")
 
-        if self.patientId not in patientDict:
-            patientDict[self.patientId] = []
+            if self.patientId not in patientDict:
+                patientDict[self.patientId] = []
 
-        patientDict[self.patientId].append((int(env.now()), self.info['Visit status'][:1]))
+            patientDict[self.patientId].append((int(env.now()), self.info['Visit status'][:1]))
 
 class DepartmentCapacity(sim.Component):
     def process(self):
         while True:
-            if int(math.ceil(env.now())) % 7 == 0 or int(math.ceil(env.now())) % 7 == 6:
+            if round(env.now()) % 7 == 0 or round(env.now()) % 7 == 6:
                 slots.set_capacity(0)
                 doctors.set_capacity(0)
                 yield self.hold(1)
@@ -151,8 +152,8 @@ class DepartmentCapacity(sim.Component):
                 doctors.set_capacity(0)
                 yield self.hold(env.hours(8))
 
-                slots.set_capacity(11)
-                doctors.set_capacity(11)
+                slots.set_capacity(10)
+                doctors.set_capacity(10)
                 yield self.hold(env.hours(6.5))
 
                 slots.set_capacity(4)
@@ -217,11 +218,9 @@ print(f"None: {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminde
 
 
 with MongoDB() as mongo:
-    for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'elapsed_time_between_appointments': 1}):
-        for i in range(len(patientStatistics['elapsed_time_between_appointments'])):
-            if (patientDict[patientStatistics['pac_unif_cod']][i+1][0] - patientDict[patientStatistics['pac_unif_cod']][i][0]) != patientStatistics['elapsed_time_between_appointments'][i]['elapsed_time']:
-
-                if patientDict[patientStatistics['pac_unif_cod']][i][1] != "C" and patientDict[patientStatistics['pac_unif_cod']][i+1][1] != "C":
-                    print(f"{patientStatistics['pac_unif_cod']} "
-                          f"{patientDict[patientStatistics['pac_unif_cod']][i][1]} - {patientDict[patientStatistics['pac_unif_cod']][i+1][1]}"
-                          f"-> {i} -- DIFF: {patientDict[patientStatistics['pac_unif_cod']][i+1][0] - patientDict[patientStatistics['pac_unif_cod']][i][0] - patientStatistics['elapsed_time_between_appointments'][i]['elapsed_time']}")
+    for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'elapsed_time_between_appointments_without_cancelled': 1}):
+        for i in range(len(patientStatistics['elapsed_time_between_appointments_without_cancelled'])):
+            if (patientDict[patientStatistics['pac_unif_cod']][i+1][0] - patientDict[patientStatistics['pac_unif_cod']][i][0]) != patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']:
+                print(f"{patientStatistics['pac_unif_cod']} "
+                      f"{patientDict[patientStatistics['pac_unif_cod']][i][1]} - {patientDict[patientStatistics['pac_unif_cod']][i+1][1]}"
+                      f"-> {i} -- DIFF: {patientDict[patientStatistics['pac_unif_cod']][i+1][0] - patientDict[patientStatistics['pac_unif_cod']][i][0] - patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']}")
