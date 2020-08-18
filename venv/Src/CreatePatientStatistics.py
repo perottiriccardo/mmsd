@@ -42,6 +42,26 @@ with MongoDB() as mongo:
             dict["elapsed_time"] = (date.fromtimestamp(int(dict["second_appointment"]/1000)) - date.fromtimestamp(int(dict["first_appointment"]/1000))).days
             statistics['elapsed_time_between_appointments'].append(dict)
 
+        statistics['elapsed_time_between_appointments_without_cancelled'] = []
+        k = 0
+        while(k < statistics['total_appointments'] - 1):
+            dict = {}
+            if not (trace['appointments'][k]['Visit status'] == "Cancelled Pat" or trace['appointments'][k]['Visit status'] == "Cancelled HS"):
+                j = k + 1
+                while j < statistics['total_appointments'] - 1:
+                    if not (trace['appointments'][j]['Visit status'] == "Cancelled Pat" or trace['appointments'][j]['Visit status'] == "Cancelled HS"):
+                        dict["first_appointment"] = trace['appointments'][k]['Visit day']
+                        dict["second_appointment"] = trace['appointments'][j]['Visit day']
+                        dict["elapsed_time"] = (
+                                    date.fromtimestamp(int(dict["second_appointment"] / 1000)) - date.fromtimestamp(
+                                int(dict["first_appointment"] / 1000))).days
+                        statistics['elapsed_time_between_appointments_without_cancelled'].append(dict)
+
+                        k = j - 1
+                        break
+                    j += 1
+            k += 1
+
         statisticsList.append(statistics)
 
         i += 1
