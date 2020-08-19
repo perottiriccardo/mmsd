@@ -28,14 +28,15 @@ class Reminder(sim.Component):
 
     def process(self):
         global reminders
+
         if int(self.appointment.info['relative_visit_day'] - env.now()) > 2:
             yield self.hold(int(self.appointment.info['relative_visit_day'] - env.now()) - 2)
         else:
             yield self.hold(int(self.appointment.info['relative_visit_day'] - env.now()))
         self.appointment.reminded = self.appointment.info["Appointment remainder"]
 
-        reminders[self.appointment.reminded] += 1
-        # print(f"Reminded {self.appointment.patientId}")
+        if validate: reminders[self.appointment.reminded] += 1
+        if trace: print(f"Reminded {self.appointment.patientId}")
 
 class CancelAppointment(sim.Component):
     def setup(self, appointment):
@@ -50,7 +51,6 @@ class PatientGenerator(sim.Component):
     def process(self):
         with MongoDB() as mongo:
             while True:
-                #print(f"Day: {env.now()}")
                 # Vengono selezionati i pazienti dal DB che hanno interagito per la prima volta con il sistema al giorno corrente
                 for patient in mongo.query("PatientTrace", query={'relative_first_interaction_day': env.now()}, projection={'Pac_Unif_Cod': 1, 'appointments': 1}):
                     # Il paziente viene creato con il suo ID e i suoi appuntamenti
@@ -65,7 +65,7 @@ class Patient(sim.Component):
         self.appointments = appointments
 
     def process(self):
-        #print(f"New patient: {self.id}")
+        if trace: print(f"New patient: {self.id}")
 
         for i in range(len(self.appointments)):
 
@@ -90,20 +90,18 @@ class Appointment(sim.Component):
         self.reminded = None
 
     def process(self):
-        global nAppointments, visitStatus, patientDict
-
-        #print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
-        nAppointments += 1
+        global nAppointments, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
+        if trace: print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
 
         if self.info['Visit status'] == 'Cancelled Pat':
             # Attendo un valore tra 0 e i giorni che mancano alla visita per cancellare l'appuntamento
             yield self.hold(sim.Uniform(0, int(self.info['relative_visit_day'] - env.now())))
-            #print(f"Appointment cancelled from Pat {self.nAppointment} -> Patient: {self.patientId}")
-            visitStatus[self.info['Visit status']] += 1
+
+            if trace: print(f"Appointment cancelled from Pat {self.nAppointment} -> Patient: {self.patientId}")
         elif self.info['Visit status'] == 'Cancelled HS':
             yield self.passivate()
-            #print(f"Appointment cancelled from HS {self.nAppointment} -> Patient: {self.patientId}")
-            visitStatus[self.info['Visit status']] += 1
+
+            if trace: print(f"Appointment cancelled from HS {self.nAppointment} -> Patient: {self.patientId}")
         elif self.info['Visit status'] == 'NoShowUp' or self.info['Visit status'] == 'Done':
             # Attendo fino al giorno dell'appuntamento
             yield self.hold(self.info['relative_visit_day'] - env.now())
@@ -115,12 +113,11 @@ class Appointment(sim.Component):
             yield self.request(slots)
 
             if self.info['Visit status'] == 'NoShowUp':
-                #print(f"Appointment no show up {self.nAppointment} -> Patient: {self.patientId}")
+                if trace: print(f"Appointment no show up {self.nAppointment} -> Patient: {self.patientId}")
 
                 # Tengo lo slot occupato per 15 minuti
                 yield self.hold(env.minutes(timeSlot))
                 self.release(slots)
-                visitStatus[self.info['Visit status']] +=1
             else:
                 # Richiedo una risorsa dottore
                 yield self.request(doctors)
@@ -131,18 +128,27 @@ class Appointment(sim.Component):
                 self.release(doctors)
                 self.release(slots)
 
-                visitStatus[self.info['Visit status']] +=1
+                if trace: print(f"Appointment done {self.nAppointment} -> Patient: {self.patientId}")
 
-                #print(f"Appointment done {self.nAppointment} -> Patient: {self.patientId}")
+            if validate:
+                if self.patientId not in patientAppointmentsDayDict:
+                    patientAppointmentsDayDict[self.patientId] = []
 
-            if self.patientId not in patientDict:
-                patientDict[self.patientId] = []
+                patientAppointmentsDayDict[self.patientId].append(int(env.now()))
 
-            patientDict[self.patientId].append((int(env.now()), self.info['Visit status'][:1]))
+        if validate:
+            if self.patientId not in patientAppointmentsStatusDict:
+                patientAppointmentsStatusDict[self.patientId] = {"NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
+
+            nAppointments += 1
+            visitStatus[self.info['Visit status']] += 1
+            patientAppointmentsStatusDict[self.patientId][self.info['Visit status']] += 1
 
 class DepartmentCapacity(sim.Component):
     def process(self):
         while True:
+            if trace: print(round(env.now()))
+
             if round(env.now()) % 7 == 0 or round(env.now()) % 7 == 6:
                 slots.set_capacity(0)
                 doctors.set_capacity(0)
@@ -165,13 +171,16 @@ class DepartmentCapacity(sim.Component):
                 yield self.hold(env.hours(2))
 
 
+# Variabili per la validazione
 visitStatus = { "NoShowUp" : 0, "Done" : 0, "Cancelled Pat" : 0, "Cancelled HS" : 0}
 reminders = { "SMS" : 0, "Phone+SMS" : 0, "Phone": 0, "Other": 0}
 nAppointments = 0
-patientDict = {}
+patientAppointmentsDayDict = {}
+patientAppointmentsStatusDict = {}
 
-# config = configparser.ConfigParser()
-# config.read('ConfigFile.properties')
+# Variabili per avere maggiori informazioni
+validate = False
+trace = False
 
 timeSlot = 15
 env = sim.Environment(trace=False, time_unit='days')
@@ -204,23 +213,46 @@ env.run(till=2200)
 #slots.print_statistics()
 #doctors.print_statistics()
 
-print(f"Appointments: {nAppointments}")
-print(f"NoShowUp: {visitStatus['NoShowUp']/nAppointments*100}")
-print(f"Done: {visitStatus['Done']/nAppointments*100}")
-print(f"Cancelled Pat: {visitStatus['Cancelled Pat']/nAppointments*100}")
-print(f"Cancelled HS: {visitStatus['Cancelled HS']/nAppointments*100}")
+if validate:
+    print(f"Appointments: {nAppointments}\n")
 
-print(f"SMS: {reminders['SMS']/nAppointments*100}")
-print(f"Phone+SMS: {reminders['Phone+SMS']/nAppointments*100}")
-print(f"Phone: {reminders['Phone']/nAppointments*100}")
-print(f"Other: {reminders['Other']/nAppointments*100}")
-print(f"None: {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}")
+    # Validazione statistiche genearli sullo status degli appuntamenti
+    print(f"NoShowUp: {visitStatus['NoShowUp']/nAppointments*100}")
+    print(f"Done: {visitStatus['Done']/nAppointments*100}")
+    print(f"Cancelled Pat: {visitStatus['Cancelled Pat']/nAppointments*100}")
+    print(f"Cancelled HS: {visitStatus['Cancelled HS']/nAppointments*100}\n")
 
+    # Validazione statistiche genearli sui reminders degli appuntamenti
+    print(f"SMS: {reminders['SMS']/nAppointments*100}")
+    print(f"Phone+SMS: {reminders['Phone+SMS']/nAppointments*100}")
+    print(f"Phone: {reminders['Phone']/nAppointments*100}")
+    print(f"Other: {reminders['Other']/nAppointments*100}")
+    print(f"None: {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
 
-with MongoDB() as mongo:
-    for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'elapsed_time_between_appointments_without_cancelled': 1}):
-        for i in range(len(patientStatistics['elapsed_time_between_appointments_without_cancelled'])):
-            if (patientDict[patientStatistics['pac_unif_cod']][i+1][0] - patientDict[patientStatistics['pac_unif_cod']][i][0]) != patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']:
-                print(f"{patientStatistics['pac_unif_cod']} "
-                      f"{patientDict[patientStatistics['pac_unif_cod']][i][1]} - {patientDict[patientStatistics['pac_unif_cod']][i+1][1]}"
-                      f"-> {i} -- DIFF: {patientDict[patientStatistics['pac_unif_cod']][i+1][0] - patientDict[patientStatistics['pac_unif_cod']][i][0] - patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']}")
+    with MongoDB() as mongo:
+        for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'visit_status_appointments': 1, 'elapsed_time_between_appointments_without_cancelled': 1}):
+            # Validazione status degli appuntamenti per ogni paziente
+            if patientStatistics['pac_unif_cod'] not in patientAppointmentsStatusDict:
+               if patientStatistics['visit_status_appointments']['done'] != 0 or \
+                patientStatistics['visit_status_appointments']['no_show_up'] != 0 or \
+                patientStatistics['visit_status_appointments']['cancelled'] != 0:
+                   print(f"{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+            elif patientStatistics['visit_status_appointments']['done'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] or \
+                patientStatistics['visit_status_appointments']['no_show_up'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp'] or \
+                patientStatistics['visit_status_appointments']['cancelled'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled Pat'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled HS']:
+                print(f"{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+
+            # Validazione del numero di intervalli tra appuntamenti NoShowUp e Done per ogni paziente
+            if patientStatistics['pac_unif_cod'] not in patientAppointmentsDayDict:
+                if len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) > 0:
+                    print(f"{patientStatistics['pac_unif_cod']} -> Different number of appointments")
+                    continue
+            elif len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) != len(patientAppointmentsDayDict[patientStatistics['pac_unif_cod']])-1:
+                print(f"{patientStatistics['pac_unif_cod']} -> Different number of appointments")
+                continue
+
+            # Validazione degli intervalli tra appuntamenti NoShowUp e Done per ogni paziente
+            for i in range(len(patientStatistics['elapsed_time_between_appointments_without_cancelled'])):
+                if (patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i]) != patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']:
+                    print(f"{patientStatistics['pac_unif_cod']} "
+                          f"-> {i} -- DIFF: {patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i] - patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']}")
