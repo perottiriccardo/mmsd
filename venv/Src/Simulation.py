@@ -84,13 +84,13 @@ class Patient(sim.Component):
 
 class Appointment(sim.Component):
     def setup(self, nAppointment, patientId, info):
-        self.nAppointment = nAppointment
+        self.nAppointment = nAppointment #TODO gestire numero appuntamento corretto
         self.patientId = patientId
         self.info = info
         self.reminded = None
 
     def process(self):
-        global nAppointments, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
+        global nAppointments, nAppointmentsWrong, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
         if trace: print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
 
         if self.info['Visit status'] == 'Cancelled Pat':
@@ -136,6 +136,9 @@ class Appointment(sim.Component):
 
                 patientAppointmentsDayDict[self.patientId].append(int(env.now()))
 
+                if int(env.now) != int(self.info['relative_visit_day']):
+                    nAppointmentsWrong += 1
+
         if validate:
             if self.patientId not in patientAppointmentsStatusDict:
                 patientAppointmentsStatusDict[self.patientId] = {"NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
@@ -174,7 +177,7 @@ class DepartmentCapacity(sim.Component):
 # Variabili per la validazione
 visitStatus = { "NoShowUp" : 0, "Done" : 0, "Cancelled Pat" : 0, "Cancelled HS" : 0}
 reminders = { "SMS" : 0, "Phone+SMS" : 0, "Phone": 0, "Other": 0}
-nAppointments = 0
+nAppointments = nAppointmentsWrong = 0
 patientAppointmentsDayDict = {}
 patientAppointmentsStatusDict = {}
 
@@ -214,7 +217,8 @@ env.run(till=2200)
 #doctors.print_statistics()
 
 if validate:
-    print(f"Appointments: {nAppointments}\n")
+    print(f"Appointments: {nAppointments}")
+    print(f"Appointments wrong day: {nAppointmentsWrong}\n")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
     print(f"NoShowUp: {visitStatus['NoShowUp']/nAppointments*100}")
