@@ -5,22 +5,41 @@ import configparser
 import math
 import image
 
-class Hospital(sim.Component):
+class HospitalBook(sim.Component):
     def process(self):
         while True:
             while len(patientBookQueue) == 0:
                 yield self.passivate()
-            self.patient = patientBookQueue.pop()
+            patient = patientBookQueue.pop()
 
-            appointment = Appointment(nAppointment=self.patient.currentIndex + 1,
-                        patientId=self.patient.id,
-                        info=self.patient.appointments[self.patient.currentIndex])
+            appointment = Appointment(nAppointment=patient.currentIndex + 1, patientId=patient.id,
+                        info=patient.appointments[patient.currentIndex])
+
+            if appointment.info["Visit status"] != "Cancelled HS" and appointment.info["Visit status"] != "Cancelled Pat":
+                appointment.enter_sorted(appointmentScheduleQueue, patient.appointments[patient.currentIndex]['relative_visit_day'])
+
+                if hospitalSchedule.ispassive():
+                    hospitalSchedule.activate()
+
             if appointment.info['Appointment remainder'] != "None":
                 Reminder(appointment=appointment)
             if appointment.info["Visit status"] == "Cancelled HS":
                 CancelAppointment(appointment = appointment)
 
-            self.patient.activate()
+            patient.activate()
+
+class HospitalSchedule(sim.Component):
+    def process(self):
+        while True:
+            while len(appointmentScheduleQueue) == 0:
+                yield self.passivate()
+
+            while int(appointmentScheduleQueue.head().info['relative_visit_day']) - int(env.now()) > 0:
+                yield self.hold(round(env.now()) - env.now())
+
+            appointment = appointmentScheduleQueue.pop()
+            yield self.hold(appointment.info['relative_visit_day'] - env.now())
+            appointment.activate()
 
 class Reminder(sim.Component):
     def setup(self, appointment):
@@ -58,7 +77,6 @@ class PatientGenerator(sim.Component):
 
                 yield self.hold(1) # Rischedulazione del generatore ogni giorno (unità di tempo del sistema)
 
-
 class Patient(sim.Component):
     def setup(self, id, appointments):
         self.id = id
@@ -73,8 +91,8 @@ class Patient(sim.Component):
             self.enter(patientBookQueue)
             self.currentIndex = i
 
-            if hospital.ispassive():
-                hospital.activate()
+            if hospitalBook.ispassive():
+                hospitalBook.activate()
 
             yield self.passivate()
 
@@ -104,7 +122,8 @@ class Appointment(sim.Component):
             if trace: print(f"Appointment cancelled from HS {self.nAppointment} -> Patient: {self.patientId}")
         elif self.info['Visit status'] == 'NoShowUp' or self.info['Visit status'] == 'Done':
             # Attendo fino al giorno dell'appuntamento
-            yield self.hold(self.info['relative_visit_day'] - env.now())
+            # yield self.hold(self.info['relative_visit_day'] - env.now())
+            yield self.passivate()
 
             if str(env.now())[-2:] == ".0":
                 yield self.hold(sim.Uniform(8, 18, "hours"))
@@ -151,7 +170,7 @@ class DepartmentCapacity(sim.Component):
     def process(self):
         while True:
             if trace: print(round(env.now()))
-
+            print(round(env.now()))
             if round(env.now()) % 7 == 0 or round(env.now()) % 7 == 6:
                 slots.set_capacity(0)
                 doctors.set_capacity(0)
@@ -190,8 +209,12 @@ env = sim.Environment(trace=False, time_unit='days')
 env.animate(True)
 
 patientBookQueue = sim.Queue("patientBookQueue")
+appointmentScheduleQueue = sim.Queue("appointmentScheduleQueue")
+
 PatientGenerator()
-hospital = Hospital()
+hospitalBook = HospitalBook()
+hospitalSchedule = HospitalSchedule()
+
 # Creata la risorsa slot con una capacità variabile
 slots = sim.Resource('Slot')
 # Creata la risorsa dottore con una capacità variabile
