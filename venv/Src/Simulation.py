@@ -136,7 +136,7 @@ class Appointment(sim.Component):
 
                 patientAppointmentsDayDict[self.patientId].append(int(env.now()))
 
-                if int(env.now) != int(self.info['relative_visit_day']):
+                if int(env.now()) != int(self.info['relative_visit_day']):
                     nAppointmentsWrong += 1
 
         if validate:
@@ -182,7 +182,7 @@ patientAppointmentsDayDict = {}
 patientAppointmentsStatusDict = {}
 
 # Variabili per avere maggiori informazioni
-validate = False
+validate = True
 trace = False
 
 timeSlot = 15
