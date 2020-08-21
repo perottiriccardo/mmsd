@@ -1,10 +1,6 @@
 # noinspection PyUnresolvedReferences
 from DBConnection.MongoDBConnection import MongoDB
-import salabim as sim
-import configparser
-import math
-import image
-import time
+import salabim as sim, configparser, math, image, time, numpy as np
 
 class HospitalBook(sim.Component):
     def process(self):
@@ -134,9 +130,24 @@ class Appointment(sim.Component):
             yield self.passivate()
 
             if trace: print(f"Appointment cancelled from HS {self.nAppointment} -> Patient: {self.patientId}")
-        elif self.info['Visit status'] == 'NoShowUp' or self.info['Visit status'] == 'Done':
+        elif self.info['Visit status'] == 'NoShowUp':
+            if np.random.choice(2, 1, p=[config['Probabilities']['noShowUpNotice'], 1-float(config['Probabilities']['noShowUpNotice'])]) == 0:
+                # Attendo fino al giorno dell'appuntamento
+                yield self.passivate()
+
+                if str(env.now())[-5:] == ".0001":
+                    yield self.hold(sim.Uniform(8, 18, "hours"))
+
+                # Richiedo una risorsa slot
+                yield self.request(slots)
+
+                if trace: print(f"Appointment no show up {self.nAppointment} -> Patient: {self.patientId}")
+
+                # Tengo lo slot occupato per 15 minuti
+                yield self.hold(env.minutes(timeSlot))
+                self.release(slots)
+        elif self.info['Visit status'] == 'Done':
             # Attendo fino al giorno dell'appuntamento
-            # yield self.hold(self.info['relative_visit_day'] - env.now())
             yield self.passivate()
 
             if str(env.now())[-5:] == ".0001":
@@ -163,15 +174,6 @@ class Appointment(sim.Component):
 
                 if trace: print(f"Appointment done {self.nAppointment} -> Patient: {self.patientId}")
 
-            if validate:
-                if self.patientId not in patientAppointmentsDayDict:
-                    patientAppointmentsDayDict[self.patientId] = []
-
-                patientAppointmentsDayDict[self.patientId].append(int(env.now()))
-
-                if int(env.now()) != int(self.info['relative_visit_day']):
-                    nAppointmentsWrong += 1
-
         if validate:
             if self.patientId not in patientAppointmentsStatusDict:
                 patientAppointmentsStatusDict[self.patientId] = {"NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
@@ -180,11 +182,20 @@ class Appointment(sim.Component):
             visitStatus[self.info['Visit status']] += 1
             patientAppointmentsStatusDict[self.patientId][self.info['Visit status']] += 1
 
+            if self.info['Visit status'] == 'Done' or self.info['Visit status'] == 'NoShowUp':
+                if self.patientId not in patientAppointmentsDayDict:
+                    patientAppointmentsDayDict[self.patientId] = []
+
+                patientAppointmentsDayDict[self.patientId].append(int(env.now()))
+
+                if int(env.now()) != int(self.info['relative_visit_day']):
+                    nAppointmentsWrong += 1
+
 class DepartmentCapacity(sim.Component):
     def process(self):
         while True:
             if trace: print(round(env.now()))
-
+            print(round(env.now()))
             # Se sabato o domenica setto la capacita degli slots e dei dottori a 0, altrimenti setto capacità 10 dalle 8:00 alle 14:30 e capacità 4 dalle 14:30 alle 21:00. 0 per le restanti ore
             if round(env.now()) % 7 == 0 or round(env.now()) % 7 == 6:
                 slots.set_capacity(0)
@@ -209,6 +220,9 @@ class DepartmentCapacity(sim.Component):
 
 
 start_time = time.time()
+
+config = configparser.ConfigParser()
+config.read('ConfigFile.properties')
 
 # Variabili per la validazione
 visitStatus = { "NoShowUp" : 0, "Done" : 0, "Cancelled Pat" : 0, "Cancelled HS" : 0}
