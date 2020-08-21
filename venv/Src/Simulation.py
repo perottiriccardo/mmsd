@@ -35,7 +35,6 @@ class HospitalSchedule(sim.Component):
                 yield self.passivate()
 
             while int(appointmentScheduleQueue.head().info['relative_visit_day']) - int(env.now()) > 0:
-                # print(math.floor(env.now()+1)- env.now())
                 yield self.hold(math.floor(env.now()+1) - env.now() + 0.0001)
 
             appointment = appointmentScheduleQueue.pop()
