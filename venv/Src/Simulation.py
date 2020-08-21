@@ -11,22 +11,26 @@ class HospitalBook(sim.Component):
         while True:
             while len(patientBookQueue) == 0:
                 yield self.passivate()
-            patient = patientBookQueue.pop()
 
+            # Prendo il paziente che deve prenotare e creo l'appuntamento con i dati dello stesso (currentIndex mi dice il numero dell'appuntamnto del paziente che stiamo creando)
+            patient = patientBookQueue.pop()
             appointment = Appointment(nAppointment=patient.currentIndex + 1, patientId=patient.id,
                         info=patient.appointments[patient.currentIndex])
 
+            # Se l'appuntamento non è stato cancellato lo inserisco nella coda di appuntamenti da schedulare e attivo HospitalSchedule
             if appointment.info["Visit status"] != "Cancelled HS" and appointment.info["Visit status"] != "Cancelled Pat":
                 appointment.enter_sorted(appointmentScheduleQueue, patient.appointments[patient.currentIndex]['relative_visit_day'])
 
                 if hospitalSchedule.ispassive():
                     hospitalSchedule.activate()
 
+            # Creo il reminder se esiste e creo la cancellazione dell'ospedale se necessaria
             if appointment.info['Appointment remainder'] != "None":
                 Reminder(appointment=appointment)
             if appointment.info["Visit status"] == "Cancelled HS":
                 CancelAppointment(appointment = appointment)
 
+            # Riattivo il paziente che ha prenotato per permettergli di prenotare gli appuntamenti successivi e continuo con i restanti pazienti
             patient.activate()
 
 class HospitalSchedule(sim.Component):
@@ -35,9 +39,11 @@ class HospitalSchedule(sim.Component):
             while len(appointmentScheduleQueue) == 0:
                 yield self.passivate()
 
+            # Aspetto il giorno successivo se ho schedulato tutti gli appuntamenti della giornata (+0.0001 per permettere anche agli appuntamenti di mezzanotte di essere messi nella coda di priorità (da HospitalBook) prima di essere schedulati)
             while int(appointmentScheduleQueue.head().info['relative_visit_day']) - int(env.now()) > 0:
                 yield self.hold(math.floor(env.now()+1) - env.now() + 0.0001)
 
+            # Prendo il primo appuntamento dalla coda di priorità e attendo l'ora di scheduling per attivarlo. Poi continuo con gli appuntamenti successivi che saranno temporalmente successivi a questo preso in considerazione
             appointment = appointmentScheduleQueue.pop()
             yield self.hold(appointment.info['relative_visit_day'] - env.now() + 0.0001)
             appointment.activate()
@@ -49,10 +55,15 @@ class Reminder(sim.Component):
     def process(self):
         global reminders
 
+        # Attendo 2 giorni prima dell'appuntamento per mandare il reminder, se non possibile attendo 1 giorno prima, altrimenti lo mando l'ora e il giorno dell'appuntamento
         if int(self.appointment.info['relative_visit_day'] - env.now()) > 2:
             yield self.hold(int(self.appointment.info['relative_visit_day'] - env.now()) - 2)
+        elif int(self.appointment.info['relative_visit_day'] - env.now()) > 1:
+            yield self.hold(int(self.appointment.info['relative_visit_day'] - env.now()) - 1)
         else:
             yield self.hold(int(self.appointment.info['relative_visit_day'] - env.now()))
+
+        # Setto il reminder nell'appuntamento
         self.appointment.reminded = self.appointment.info["Appointment remainder"]
 
         if validate: reminders[self.appointment.reminded] += 1
@@ -63,6 +74,7 @@ class CancelAppointment(sim.Component):
         self.appointment = appointment
 
     def process(self):
+        # Attendo un tempo casuale tra oggi e il giorno dell'appuntamento per cancellarlo
         yield self.hold(sim.Uniform(0, int(self.appointment.info['relative_visit_day'] - env.now())))
         self.appointment.activate()
 
@@ -87,23 +99,24 @@ class Patient(sim.Component):
         if trace: print(f"New patient: {self.id}")
 
         for i in range(len(self.appointments)):
-
-            # Viene creato un appuntamento nel sistema
+            # Aggiungo il paziente alla lista di pazienti che vogliono prenotare un appuntamento oggi stesso e setto l'indice dell'appunatmento
             self.enter(patientBookQueue)
             self.currentIndex = i
 
+            # Attivo la HospitalBook per permettere la prenotazione se non attivo
             if hospitalBook.ispassive():
                 hospitalBook.activate()
 
+            # Attendo che HospitalBook risvegli il paziente una volta effettuata la prenotazione
             yield self.passivate()
 
+            # Se il paziente deve prenotare altri appuntamenti attende la data di waiting list del successivo per crearlo
             if(i < len(self.appointments)-1):
-                # Il paziente attende la data di waiting list del successivo appuntamento per creare il nuovo appuntamento
                 yield self.hold(self.appointments[i+1]['relative_waiting_list_entry_date'] - env.now())
 
 class Appointment(sim.Component):
     def setup(self, nAppointment, patientId, info):
-        self.nAppointment = nAppointment #TODO gestire numero appuntamento corretto
+        self.nAppointment = nAppointment
         self.patientId = patientId
         self.info = info
         self.reminded = None
@@ -172,6 +185,7 @@ class DepartmentCapacity(sim.Component):
         while True:
             if trace: print(round(env.now()))
 
+            # Se sabato o domenica setto la capacita degli slots e dei dottori a 0, altrimenti setto capacità 10 dalle 8:00 alle 14:30 e capacità 4 dalle 14:30 alle 21:00. 0 per le restanti ore
             if round(env.now()) % 7 == 0 or round(env.now()) % 7 == 6:
                 slots.set_capacity(0)
                 doctors.set_capacity(0)
