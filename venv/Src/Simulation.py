@@ -131,7 +131,7 @@ class Appointment(sim.Component):
 
             if trace: print(f"Appointment cancelled from HS {self.nAppointment} -> Patient: {self.patientId}")
         elif self.info['Visit status'] == 'NoShowUp':
-            if np.random.choice(2, 1, p=[1-float(config['Probabilities']['noShowUpNotice']), config['Probabilities']['noShowUpNotice']]) == 0:
+            if int(self.info['relative_visit_day'] - env.now()) <= 2 or np.random.choice(2, 1, p=[1-float(config['Probabilities']['noShowUpNotice']), config['Probabilities']['noShowUpNotice']]) == 0:
                 # Attendo fino al giorno dell'appuntamento
                 yield self.passivate()
 
@@ -147,8 +147,10 @@ class Appointment(sim.Component):
                 yield self.hold(env.minutes(timeSlot))
                 self.release(slots)
             else:
-                yield self.hold(sim.Uniform(0, int(self.info['relative_visit_day'] - env.now())-2)) # Se meno di 2 giorni prima???
+                yield self.hold(sim.Uniform(0, int(self.info['relative_visit_day'] - env.now())-2)) # Se meno di 2 giorni prima??? Tanti giorni di attesa cancello troppo presto ????
                 self.leave(appointmentScheduleQueue)
+
+                ReplaceAppointment(appointment=self)
         elif self.info['Visit status'] == 'Done':
             # Attendo fino al giorno dell'appuntamento
             yield self.passivate()
@@ -158,24 +160,16 @@ class Appointment(sim.Component):
 
             # Richiedo una risorsa slot
             yield self.request(slots)
+            # Richiedo una risorsa dottore
+            yield self.request(doctors)
+            # Quando il dottore è disponibile faccio la visita di 15 minuti
+            yield self.hold(env.minutes(timeSlot))
 
-            if self.info['Visit status'] == 'NoShowUp':
-                if trace: print(f"Appointment no show up {self.nAppointment} -> Patient: {self.patientId}")
+            # Rilascio la risorsa dottore
+            self.release(doctors)
+            self.release(slots)
 
-                # Tengo lo slot occupato per 15 minuti
-                yield self.hold(env.minutes(timeSlot))
-                self.release(slots)
-            else:
-                # Richiedo una risorsa dottore
-                yield self.request(doctors)
-                # Quando il dottore è disponibile faccio la visita di 15 minuti
-                yield self.hold(env.minutes(timeSlot))
-
-                # Rilascio la risorsa dottore
-                self.release(doctors)
-                self.release(slots)
-
-                if trace: print(f"Appointment done {self.nAppointment} -> Patient: {self.patientId}")
+            if trace: print(f"Appointment done {self.nAppointment} -> Patient: {self.patientId}")
 
         if validate:
             if self.patientId not in patientAppointmentsStatusDict:
@@ -193,6 +187,18 @@ class Appointment(sim.Component):
 
                 if int(env.now()) != int(self.info['relative_visit_day']):
                     nAppointmentsWrong += 1
+
+class ReplaceAppointment(sim.Component):
+    def setup(self, appointment):
+        self.appointment = appointment
+
+    def process(self):
+        for appointment in appointmentScheduleQueue:
+            if appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] >= 1 and appointment.info['Visit status'] == 'Done':
+                appointment.leave(appointmentScheduleQueue)
+                appointment.info['relative_visit_day'] = self.appointment.info['relative_visit_day']
+                appointment.enter_sorted(appointmentScheduleQueue, appointment.info['relative_visit_day'])
+                break
 
 class DepartmentCapacity(sim.Component):
     def process(self):
