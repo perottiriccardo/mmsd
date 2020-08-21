@@ -267,7 +267,7 @@ env.speed(300)
 # sim.AnimateText(text=lambda: slots.print_info(as_str=True), x=10, y=270,
 #                 text_anchor='nw', font='narrow', fontsize=14)
 
-env.run(till=2200)
+env.run(till=2191)
 
 elapsed_time = time.time() - start_time
 print(f"Execution time: {elapsed_time}")
