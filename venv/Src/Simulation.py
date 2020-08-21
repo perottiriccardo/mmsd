@@ -4,6 +4,7 @@ import salabim as sim
 import configparser
 import math
 import image
+import time
 
 class HospitalBook(sim.Component):
     def process(self):
@@ -125,7 +126,7 @@ class Appointment(sim.Component):
             # yield self.hold(self.info['relative_visit_day'] - env.now())
             yield self.passivate()
 
-            if str(env.now())[-2:] == ".0":
+            if str(env.now())[-5:] == ".0001":
                 yield self.hold(sim.Uniform(8, 18, "hours"))
 
             # Richiedo una risorsa slot
@@ -170,7 +171,7 @@ class DepartmentCapacity(sim.Component):
     def process(self):
         while True:
             if trace: print(round(env.now()))
-            # print(round(env.now()))
+
             if round(env.now()) % 7 == 0 or round(env.now()) % 7 == 6:
                 slots.set_capacity(0)
                 doctors.set_capacity(0)
@@ -192,6 +193,8 @@ class DepartmentCapacity(sim.Component):
                 doctors.set_capacity(0)
                 yield self.hold(env.hours(2))
 
+
+start_time = time.time()
 
 # Variabili per la validazione
 visitStatus = { "NoShowUp" : 0, "Done" : 0, "Cancelled Pat" : 0, "Cancelled HS" : 0}
@@ -215,6 +218,8 @@ PatientGenerator()
 hospitalBook = HospitalBook()
 hospitalSchedule = HospitalSchedule()
 
+
+
 # Creata la risorsa slot con una capacità variabile
 slots = sim.Resource('Slot')
 # Creata la risorsa dottore con una capacità variabile
@@ -235,6 +240,9 @@ env.speed(300)
 #                 text_anchor='nw', font='narrow', fontsize=14)
 
 env.run(till=2200)
+
+elapsed_time = time.time() - start_time
+print(f"Execution time: {elapsed_time}")
 
 slots.print_statistics()
 doctors.print_statistics()
