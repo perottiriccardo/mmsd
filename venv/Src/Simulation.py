@@ -35,10 +35,11 @@ class HospitalSchedule(sim.Component):
                 yield self.passivate()
 
             while int(appointmentScheduleQueue.head().info['relative_visit_day']) - int(env.now()) > 0:
-                yield self.hold(round(env.now()) - env.now())
+                # print(math.floor(env.now()+1)- env.now())
+                yield self.hold(math.floor(env.now()+1) - env.now() + 0.0001)
 
             appointment = appointmentScheduleQueue.pop()
-            yield self.hold(appointment.info['relative_visit_day'] - env.now())
+            yield self.hold(appointment.info['relative_visit_day'] - env.now() + 0.0001)
             appointment.activate()
 
 class Reminder(sim.Component):
@@ -170,7 +171,7 @@ class DepartmentCapacity(sim.Component):
     def process(self):
         while True:
             if trace: print(round(env.now()))
-            print(round(env.now()))
+            # print(round(env.now()))
             if round(env.now()) % 7 == 0 or round(env.now()) % 7 == 6:
                 slots.set_capacity(0)
                 doctors.set_capacity(0)
@@ -236,8 +237,8 @@ env.speed(300)
 
 env.run(till=2200)
 
-#slots.print_statistics()
-#doctors.print_statistics()
+slots.print_statistics()
+doctors.print_statistics()
 
 if validate:
     print(f"Appointments: {nAppointments}")
