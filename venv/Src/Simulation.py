@@ -131,7 +131,7 @@ class Appointment(sim.Component):
 
             if trace: print(f"Appointment cancelled from HS {self.nAppointment} -> Patient: {self.patientId}")
         elif self.info['Visit status'] == 'NoShowUp':
-            if np.random.choice(2, 1, p=[config['Probabilities']['noShowUpNotice'], 1-float(config['Probabilities']['noShowUpNotice'])]) == 0:
+            if np.random.choice(2, 1, p=[1-float(config['Probabilities']['noShowUpNotice']), config['Probabilities']['noShowUpNotice']]) == 0:
                 # Attendo fino al giorno dell'appuntamento
                 yield self.passivate()
 
@@ -146,6 +146,9 @@ class Appointment(sim.Component):
                 # Tengo lo slot occupato per 15 minuti
                 yield self.hold(env.minutes(timeSlot))
                 self.release(slots)
+            else:
+                yield self.hold(sim.Uniform(0, int(self.info['relative_visit_day'] - env.now())-2)) # Se meno di 2 giorni prima???
+                self.leave(appointmentScheduleQueue)
         elif self.info['Visit status'] == 'Done':
             # Attendo fino al giorno dell'appuntamento
             yield self.passivate()
