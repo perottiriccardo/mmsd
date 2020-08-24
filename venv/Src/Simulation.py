@@ -74,7 +74,6 @@ class CancelAppointment(sim.Component):
         yield self.hold(sim.Uniform(0, int(self.appointment.info['relative_visit_day'] - env.now())))
         self.appointment.activate()
 
-# Generatore di pazienti
 class PatientGenerator(sim.Component):
     def process(self):
         with MongoDB() as mongo:
@@ -131,7 +130,7 @@ class Appointment(sim.Component):
 
             if trace: print(f"Appointment cancelled from HS {self.nAppointment} -> Patient: {self.patientId}")
         elif self.info['Visit status'] == 'NoShowUp':
-            if int(self.info['relative_visit_day'] - env.now()) <= 2 or np.random.choice(2, 1, p=[1-float(config['Probabilities']['noShowUpNotice']), config['Probabilities']['noShowUpNotice']]) == 0:
+            if np.random.choice(2, 1, p=[1-float(config['Probabilities']['noShowUpNotice']), config['Probabilities']['noShowUpNotice']]) == 0:
                 # Attendo fino al giorno dell'appuntamento
                 yield self.passivate()
 
@@ -147,8 +146,10 @@ class Appointment(sim.Component):
                 yield self.hold(env.minutes(timeSlot))
                 self.release(slots)
             else:
-                yield self.hold(sim.Uniform(0, int(self.info['relative_visit_day'] - env.now())-2)) # Se meno di 2 giorni prima??? Tanti giorni di attesa cancello troppo presto ????
+                yield self.hold(sim.Triangular(0, int(self.info['relative_visit_day'] - env.now()), math.floor(int(self.info['relative_visit_day'] - env.now()))*90/100))
+
                 self.leave(appointmentScheduleQueue)
+                self.info['Visit status'] = 'Cancelled Pat'
 
                 ReplaceAppointment(appointment=self)
         elif self.info['Visit status'] == 'Done':
@@ -286,20 +287,20 @@ doctors.print_statistics()
 
 if validate:
     print(f"Appointments: {nAppointments}")
-    print(f"Appointments wrong day: {nAppointmentsWrong}\n")
+    print(f"Appointments execute in wrong day: {nAppointmentsWrong}\n")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
-    print(f"NoShowUp: {visitStatus['NoShowUp']/nAppointments*100}")
-    print(f"Done: {visitStatus['Done']/nAppointments*100}")
-    print(f"Cancelled Pat: {visitStatus['Cancelled Pat']/nAppointments*100}")
-    print(f"Cancelled HS: {visitStatus['Cancelled HS']/nAppointments*100}\n")
+    print(f"NoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
+    print(f"Done: {visitStatus['Done']} -> {visitStatus['Done']/nAppointments*100}")
+    print(f"Cancelled Pat: {visitStatus['Cancelled Pat']} -> {visitStatus['Cancelled Pat']/nAppointments*100}")
+    print(f"Cancelled HS: {visitStatus['Cancelled HS']} -> {visitStatus['Cancelled HS']/nAppointments*100}\n")
 
     # Validazione statistiche genearli sui reminders degli appuntamenti
-    print(f"SMS: {reminders['SMS']/nAppointments*100}")
-    print(f"Phone+SMS: {reminders['Phone+SMS']/nAppointments*100}")
-    print(f"Phone: {reminders['Phone']/nAppointments*100}")
-    print(f"Other: {reminders['Other']/nAppointments*100}")
-    print(f"None: {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
+    print(f"SMS: {reminders['SMS']} -> {reminders['SMS']/nAppointments*100}")
+    print(f"Phone+SMS: {reminders['Phone+SMS']} -> {reminders['Phone+SMS']/nAppointments*100}")
+    print(f"Phone: {reminders['Phone']} -> {reminders['Phone']/nAppointments*100}")
+    print(f"Other: {reminders['Other']} -> {reminders['Other']/nAppointments*100}")
+    print(f"None: {nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
 
     with MongoDB() as mongo:
         for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'visit_status_appointments': 1, 'elapsed_time_between_appointments_without_cancelled': 1}):
