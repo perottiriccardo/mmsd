@@ -279,28 +279,30 @@ env.speed(300)
 
 env.run(till=2191)
 
-elapsed_time = time.time() - start_time
-print(f"Execution time: {elapsed_time}")
+out_file = open("results.txt","w")
 
-slots.print_statistics()
-doctors.print_statistics()
+elapsed_time = time.time() - start_time
+out_file.write(f"Execution time: {elapsed_time}")
+
+out_file.write(slots.print_statistics())
+out_file.write(doctors.print_statistics())
 
 if validate:
-    print(f"Appointments: {nAppointments}")
-    print(f"Appointments execute in wrong day: {nAppointmentsWrong}\n")
+    out_file.write(f"Appointments: {nAppointments}")
+    out_file.write(f"Appointments execute in wrong day: {nAppointmentsWrong}\n")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
-    print(f"NoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
-    print(f"Done: {visitStatus['Done']} -> {visitStatus['Done']/nAppointments*100}")
-    print(f"Cancelled Pat: {visitStatus['Cancelled Pat']} -> {visitStatus['Cancelled Pat']/nAppointments*100}")
-    print(f"Cancelled HS: {visitStatus['Cancelled HS']} -> {visitStatus['Cancelled HS']/nAppointments*100}\n")
+    out_file.write(f"NoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
+    out_file.write(f"Done: {visitStatus['Done']} -> {visitStatus['Done']/nAppointments*100}")
+    out_file.write(f"Cancelled Pat: {visitStatus['Cancelled Pat']} -> {visitStatus['Cancelled Pat']/nAppointments*100}")
+    out_file.write(f"Cancelled HS: {visitStatus['Cancelled HS']} -> {visitStatus['Cancelled HS']/nAppointments*100}\n")
 
     # Validazione statistiche genearli sui reminders degli appuntamenti
-    print(f"SMS: {reminders['SMS']} -> {reminders['SMS']/nAppointments*100}")
-    print(f"Phone+SMS: {reminders['Phone+SMS']} -> {reminders['Phone+SMS']/nAppointments*100}")
-    print(f"Phone: {reminders['Phone']} -> {reminders['Phone']/nAppointments*100}")
-    print(f"Other: {reminders['Other']} -> {reminders['Other']/nAppointments*100}")
-    print(f"None: {nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
+    out_file.write(f"SMS: {reminders['SMS']} -> {reminders['SMS']/nAppointments*100}")
+    out_file.write(f"Phone+SMS: {reminders['Phone+SMS']} -> {reminders['Phone+SMS']/nAppointments*100}")
+    out_file.write(f"Phone: {reminders['Phone']} -> {reminders['Phone']/nAppointments*100}")
+    out_file.write(f"Other: {reminders['Other']} -> {reminders['Other']/nAppointments*100}")
+    out_file.write(f"None: {nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
 
     with MongoDB() as mongo:
         for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'visit_status_appointments': 1, 'elapsed_time_between_appointments_without_cancelled': 1}):
@@ -309,23 +311,25 @@ if validate:
                if patientStatistics['visit_status_appointments']['done'] != 0 or \
                 patientStatistics['visit_status_appointments']['no_show_up'] != 0 or \
                 patientStatistics['visit_status_appointments']['cancelled'] != 0:
-                   print(f"{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+                   out_file.write(f"{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
             elif patientStatistics['visit_status_appointments']['done'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] or \
                 patientStatistics['visit_status_appointments']['no_show_up'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp'] or \
                 patientStatistics['visit_status_appointments']['cancelled'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled Pat'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled HS']:
-                print(f"{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+                out_file.write(f"{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
 
             # Validazione del numero di intervalli tra appuntamenti NoShowUp e Done per ogni paziente
             if patientStatistics['pac_unif_cod'] not in patientAppointmentsDayDict:
                 if len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) > 0:
-                    print(f"{patientStatistics['pac_unif_cod']} -> Different number of appointments")
+                    out_file.write(f"{patientStatistics['pac_unif_cod']} -> Different number of appointments")
                     continue
             elif len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) != len(patientAppointmentsDayDict[patientStatistics['pac_unif_cod']])-1:
-                print(f"{patientStatistics['pac_unif_cod']} -> Different number of appointments")
+                out_file.write(f"{patientStatistics['pac_unif_cod']} -> Different number of appointments")
                 continue
 
             # Validazione degli intervalli tra appuntamenti NoShowUp e Done per ogni paziente
             for i in range(len(patientStatistics['elapsed_time_between_appointments_without_cancelled'])):
                 if (patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i]) != patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']:
-                    print(f"{patientStatistics['pac_unif_cod']} "
+                    out_file.write(f"{patientStatistics['pac_unif_cod']} "
                           f"-> {i} -- DIFF: {patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i] - patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']}")
+
+out_file.close()
