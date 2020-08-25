@@ -111,6 +111,7 @@ class Patient(sim.Component):
 
 class Appointment(sim.Component):
     def setup(self, nAppointment, patientId, info):
+        self.startWaitingDay = env.now()
         self.nAppointment = nAppointment
         self.patientId = patientId
         self.info = info
@@ -152,6 +153,7 @@ class Appointment(sim.Component):
                 self.info['Visit status'] = 'Cancelled Pat'
 
                 ReplaceAppointment(appointment=self)
+                if validate: nAppointmentsReplaced += 1
         elif self.info['Visit status'] == 'Done':
             # Attendo fino al giorno dell'appuntamento
             yield self.passivate()
@@ -183,8 +185,11 @@ class Appointment(sim.Component):
             if self.info['Visit status'] == 'Done' or self.info['Visit status'] == 'NoShowUp':
                 if self.patientId not in patientAppointmentsDayDict:
                     patientAppointmentsDayDict[self.patientId] = []
-
                 patientAppointmentsDayDict[self.patientId].append(int(env.now()))
+
+                if self.patientId not in patientAppointmentsWaitingDaysDict:
+                    patientAppointmentsWaitingDaysDict[self.patientId] = 0
+                patientAppointmentsWaitingDaysDict[self.patientId] += int(env.now())-self.startWaitingDay
 
                 if int(env.now()) != int(self.info['relative_visit_day']):
                     nAppointmentsWrong += 1
@@ -212,17 +217,14 @@ class DepartmentCapacity(sim.Component):
             doctors.set_capacity(0)
             yield self.hold(env.hours(8))
 
-            capacity = 0
-            if int(doctorPerDayMorning[int(env.now())]) != 0:
-                capacity = int(doctorPerDayMorning[int(env.now())]) + 2
-
+            capacity = int(doctorPerDayMorning[int(env.now())])
             slots.set_capacity(capacity)
             doctors.set_capacity(capacity)
             yield self.hold(env.hours(6.5))
 
-            capacity = 0
-            if int(doctorPerDayAfternoon[int(env.now())]) != 0:
-                capacity = int(doctorPerDayAfternoon[int(env.now())]) + 2
+            capacity = int(doctorPerDayAfternoon[int(env.now())])
+            if int(doctorPerDayMorning[int(env.now())]) != 0:
+                capacity += 1
 
             slots.set_capacity(capacity)
             doctors.set_capacity(capacity)
@@ -245,8 +247,9 @@ config.read('ConfigFile.properties')
 # Variabili per la validazione
 visitStatus = { "NoShowUp" : 0, "Done" : 0, "Cancelled Pat" : 0, "Cancelled HS" : 0}
 reminders = { "SMS" : 0, "Phone+SMS" : 0, "Phone": 0, "Other": 0}
-nAppointments = nAppointmentsWrong = 0
+nAppointments = nAppointmentsWrong = nAppointmentsReplaced = 0
 patientAppointmentsDayDict = {}
+patientAppointmentsWaitingDaysDict = {}
 patientAppointmentsStatusDict = {}
 
 # Variabili per avere maggiori informazioni
@@ -300,7 +303,7 @@ if validate:
     out_file.write(f"\nAppointments execute in wrong day: {nAppointmentsWrong}")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
-    out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}\n")
+    out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
     out_file.write(f"\nDone: {visitStatus['Done']} -> {visitStatus['Done']/nAppointments*100}")
     out_file.write(f"\nCancelled Pat: {visitStatus['Cancelled Pat']} -> {visitStatus['Cancelled Pat']/nAppointments*100}")
     out_file.write(f"\nCancelled HS: {visitStatus['Cancelled HS']} -> {visitStatus['Cancelled HS']/nAppointments*100}\n")
@@ -313,7 +316,7 @@ if validate:
     out_file.write(f"\nNone: {nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
 
     with MongoDB() as mongo:
-        for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'visit_status_appointments': 1, 'elapsed_time_between_appointments_without_cancelled': 1}):
+        for patientStatistics in mongo.query("PatientStatistic"):
             # Validazione status degli appuntamenti per ogni paziente
             if patientStatistics['pac_unif_cod'] not in patientAppointmentsStatusDict:
                if patientStatistics['visit_status_appointments']['done'] != 0 or \
@@ -324,6 +327,13 @@ if validate:
                 patientStatistics['visit_status_appointments']['no_show_up'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp'] or \
                 patientStatistics['visit_status_appointments']['cancelled'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled Pat'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled HS']:
                 out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+
+            # Validazione del tempo medio in waiting list per ogni paziente
+            if patientStatistics['pac_unif_cod'] in patientAppointmentsWaitingDaysDict:
+                if round(patientStatistics['mean_days_in_waiting_list_without_cancelled'], 3) != round(patientAppointmentsWaitingDaysDict[patientStatistics['pac_unif_cod']]/(patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp']), 3):
+                    out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Different mean time in waiting list -> real:"
+                                   f" {round(patientStatistics['mean_days_in_waiting_list_without_cancelled'], 3)}, simulation:"
+                                   f" {round(patientAppointmentsWaitingDaysDict[patientStatistics['pac_unif_cod']]/(patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp']), 3)}")
 
             # Validazione del numero di intervalli tra appuntamenti NoShowUp e Done per ogni paziente
             if patientStatistics['pac_unif_cod'] not in patientAppointmentsDayDict:
