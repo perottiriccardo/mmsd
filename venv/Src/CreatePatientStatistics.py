@@ -1,6 +1,7 @@
 # noinspection PyUnresolvedReferences
 from DBConnection.MongoDBConnection import MongoDB
 from datetime import datetime, date
+import statistics as stat
 
 with MongoDB() as mongo:
     statisticsList = []
@@ -33,6 +34,12 @@ with MongoDB() as mongo:
 
         if statistics['total_appointments'] != 0:
             statistics['start_to_end_appointment_diff'] = trace['appointments'][statistics['total_appointments'] - 1]['Visit day'] - trace['appointments'][0]['Visit day']
+
+            statistics['mean_days_in_waiting_list'] = round(stat.mean([int(appointment['relative_visit_day']) - appointment['relative_waiting_list_entry_date'] for appointment in trace['appointments']]), 3)
+            try:
+                statistics['mean_days_in_waiting_list_without_cancelled'] = round(stat.mean([int(appointment['relative_visit_day']) - appointment['relative_waiting_list_entry_date'] for appointment in trace['appointments'] if appointment['Visit status'] != 'Cancelled HS' and appointment['Visit status'] != 'Cancelled Pat']), 3)
+            except:
+                pass
 
         statistics['elapsed_time_between_appointments'] = []
         for i in range(0, statistics['total_appointments'] - 1):
