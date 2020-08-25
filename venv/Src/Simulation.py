@@ -207,29 +207,37 @@ class DepartmentCapacity(sim.Component):
             if trace: print(round(env.now()))
             print(round(env.now()))
             # Se sabato o domenica setto la capacita degli slots e dei dottori a 0, altrimenti setto capacità 10 dalle 8:00 alle 14:30 e capacità 4 dalle 14:30 alle 21:00. 0 per le restanti ore
-            if round(env.now()) % 7 == 0 or round(env.now()) % 7 == 6:
-                slots.set_capacity(0)
-                doctors.set_capacity(0)
-                yield self.hold(1)
-            else:
-                slots.set_capacity(0)
-                doctors.set_capacity(0)
-                yield self.hold(env.hours(8))
 
-                slots.set_capacity(10)
-                doctors.set_capacity(10)
-                yield self.hold(env.hours(6.5))
+            slots.set_capacity(0)
+            doctors.set_capacity(0)
+            yield self.hold(env.hours(8))
 
-                slots.set_capacity(4)
-                doctors.set_capacity(4)
-                yield self.hold(env.hours(7.5))
+            capacity = 0
+            if int(doctorPerDayMorning[int(env.now())]) != 0:
+                capacity = int(doctorPerDayMorning[int(env.now())]) + 2
 
-                slots.set_capacity(0)
-                doctors.set_capacity(0)
-                yield self.hold(env.hours(2))
+            slots.set_capacity(capacity)
+            doctors.set_capacity(capacity)
+            yield self.hold(env.hours(6.5))
+
+            capacity = 0
+            if int(doctorPerDayAfternoon[int(env.now())]) != 0:
+                capacity = int(doctorPerDayAfternoon[int(env.now())]) + 2
+
+            slots.set_capacity(capacity)
+            doctors.set_capacity(capacity)
+            yield self.hold(env.hours(7.5))
+
+            slots.set_capacity(0)
+            doctors.set_capacity(0)
+            yield self.hold(env.hours(2))
 
 
 start_time = time.time()
+
+with open("../Resources/doctorPerDay.txt", 'r', encoding="utf8") as file:
+    doctorPerDayMorning = file.readline().split(",") # Crea una lista di stopwords andole a recuperare dal file che le contiene
+    doctorPerDayAfternoon = file.readline().split(",")  # Crea una lista di stopwords andole a recuperare dal file che le contiene
 
 config = configparser.ConfigParser()
 config.read('ConfigFile.properties')
@@ -279,30 +287,30 @@ env.speed(300)
 
 env.run(till=2191)
 
-out_file = open("results.txt","w")
+out_file = open("../Resources/results.txt", "w")
 
 elapsed_time = time.time() - start_time
 out_file.write(f"Execution time: {elapsed_time}")
 
-out_file.write(slots.print_statistics())
-out_file.write(doctors.print_statistics())
+slots.print_statistics()
+doctors.print_statistics()
 
 if validate:
-    out_file.write(f"Appointments: {nAppointments}")
-    out_file.write(f"Appointments execute in wrong day: {nAppointmentsWrong}\n")
+    out_file.write(f"\nAppointments: {nAppointments}")
+    out_file.write(f"\nAppointments execute in wrong day: {nAppointmentsWrong}")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
-    out_file.write(f"NoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
-    out_file.write(f"Done: {visitStatus['Done']} -> {visitStatus['Done']/nAppointments*100}")
-    out_file.write(f"Cancelled Pat: {visitStatus['Cancelled Pat']} -> {visitStatus['Cancelled Pat']/nAppointments*100}")
-    out_file.write(f"Cancelled HS: {visitStatus['Cancelled HS']} -> {visitStatus['Cancelled HS']/nAppointments*100}\n")
+    out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}\n")
+    out_file.write(f"\nDone: {visitStatus['Done']} -> {visitStatus['Done']/nAppointments*100}")
+    out_file.write(f"\nCancelled Pat: {visitStatus['Cancelled Pat']} -> {visitStatus['Cancelled Pat']/nAppointments*100}")
+    out_file.write(f"\nCancelled HS: {visitStatus['Cancelled HS']} -> {visitStatus['Cancelled HS']/nAppointments*100}\n")
 
     # Validazione statistiche genearli sui reminders degli appuntamenti
-    out_file.write(f"SMS: {reminders['SMS']} -> {reminders['SMS']/nAppointments*100}")
-    out_file.write(f"Phone+SMS: {reminders['Phone+SMS']} -> {reminders['Phone+SMS']/nAppointments*100}")
-    out_file.write(f"Phone: {reminders['Phone']} -> {reminders['Phone']/nAppointments*100}")
-    out_file.write(f"Other: {reminders['Other']} -> {reminders['Other']/nAppointments*100}")
-    out_file.write(f"None: {nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
+    out_file.write(f"\n\nSMS: {reminders['SMS']} -> {reminders['SMS']/nAppointments*100}")
+    out_file.write(f"\nPhone+SMS: {reminders['Phone+SMS']} -> {reminders['Phone+SMS']/nAppointments*100}")
+    out_file.write(f"\nPhone: {reminders['Phone']} -> {reminders['Phone']/nAppointments*100}")
+    out_file.write(f"\nOther: {reminders['Other']} -> {reminders['Other']/nAppointments*100}")
+    out_file.write(f"\nNone: {nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
 
     with MongoDB() as mongo:
         for patientStatistics in mongo.query("PatientStatistic", projection={'pac_unif_cod': 1, 'visit_status_appointments': 1, 'elapsed_time_between_appointments_without_cancelled': 1}):
@@ -311,25 +319,25 @@ if validate:
                if patientStatistics['visit_status_appointments']['done'] != 0 or \
                 patientStatistics['visit_status_appointments']['no_show_up'] != 0 or \
                 patientStatistics['visit_status_appointments']['cancelled'] != 0:
-                   out_file.write(f"{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+                   out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
             elif patientStatistics['visit_status_appointments']['done'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] or \
                 patientStatistics['visit_status_appointments']['no_show_up'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp'] or \
                 patientStatistics['visit_status_appointments']['cancelled'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled Pat'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled HS']:
-                out_file.write(f"{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+                out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
 
             # Validazione del numero di intervalli tra appuntamenti NoShowUp e Done per ogni paziente
             if patientStatistics['pac_unif_cod'] not in patientAppointmentsDayDict:
                 if len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) > 0:
-                    out_file.write(f"{patientStatistics['pac_unif_cod']} -> Different number of appointments")
+                    out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Different number of appointments")
                     continue
             elif len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) != len(patientAppointmentsDayDict[patientStatistics['pac_unif_cod']])-1:
-                out_file.write(f"{patientStatistics['pac_unif_cod']} -> Different number of appointments")
+                out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Different number of appointments")
                 continue
 
             # Validazione degli intervalli tra appuntamenti NoShowUp e Done per ogni paziente
             for i in range(len(patientStatistics['elapsed_time_between_appointments_without_cancelled'])):
                 if (patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i]) != patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']:
-                    out_file.write(f"{patientStatistics['pac_unif_cod']} "
+                    out_file.write(f"\n{patientStatistics['pac_unif_cod']} "
                           f"-> {i} -- DIFF: {patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i] - patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']}")
 
 out_file.close()
