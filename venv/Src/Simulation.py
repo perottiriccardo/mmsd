@@ -301,6 +301,7 @@ doctors.print_statistics()
 if validate:
     out_file.write(f"\nAppointments: {nAppointments}")
     out_file.write(f"\nAppointments execute in wrong day: {nAppointmentsWrong}")
+    out_file.write(f"\nAppointments replaced: {nAppointmentsReplaced}")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
     out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
