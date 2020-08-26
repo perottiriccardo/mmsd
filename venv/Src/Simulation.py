@@ -304,7 +304,7 @@ if validate:
     out_file.write(f"\nAppointments: {nAppointments}")
     out_file.write(f"\nAppointments replaced (no show up): {nAppointmentsReplaced}")
     out_file.write(f"\nAppointments execute in wrong day (without cancelled): {nAppointmentsWrong}")
-    out_file.write(f"\nMean days in waiting list (without cancelled): {round(totDaysInWaitingList/nAppointments, 3)}")
+    out_file.write(f"\nMean days in waiting list (without cancelled): {totDaysInWaitingList/nAppointments, 3}")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
     out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
