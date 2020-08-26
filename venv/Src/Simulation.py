@@ -118,7 +118,7 @@ class Appointment(sim.Component):
         self.reminded = None
 
     def process(self):
-        global nAppointments, nAppointmentsWrong, nAppointmentsReplaced, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
+        global nAppointments, nAppointmentsWrong, nAppointmentsReplaced, totDaysInWaitingList, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
         if trace: print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
 
         if self.info['Visit status'] == 'Cancelled Pat':
@@ -194,6 +194,8 @@ class Appointment(sim.Component):
                     patientAppointmentsWaitingDaysDict[self.patientId] = 0
                 patientAppointmentsWaitingDaysDict[self.patientId] += int(env.now())-self.startWaitingDay
 
+                totDaysInWaitingList += int(env.now())-self.startWaitingDay
+
                 if int(env.now()) != int(self.info['relative_visit_day']):
                     nAppointmentsWrong += 1
 
@@ -247,7 +249,7 @@ config.read('ConfigFile.properties')
 # Variabili per la validazione
 visitStatus = { "NoShowUp" : 0, "Done" : 0, "Cancelled Pat" : 0, "Cancelled HS" : 0}
 reminders = { "SMS" : 0, "Phone+SMS" : 0, "Phone": 0, "Other": 0}
-nAppointments = nAppointmentsWrong = nAppointmentsReplaced = 0
+nAppointments = nAppointmentsWrong = nAppointmentsReplaced = totDaysInWaitingList = 0
 patientAppointmentsDayDict = {}
 patientAppointmentsWaitingDaysDict = {}
 patientAppointmentsStatusDict = {}
@@ -300,8 +302,9 @@ doctors.print_statistics()
 
 if validate:
     out_file.write(f"\nAppointments: {nAppointments}")
-    out_file.write(f"\nAppointments execute in wrong day: {nAppointmentsWrong}")
-    out_file.write(f"\nAppointments replaced: {nAppointmentsReplaced}")
+    out_file.write(f"\nAppointments replaced (no show up): {nAppointmentsReplaced}")
+    out_file.write(f"\nAppointments execute in wrong day (without cancelled): {nAppointmentsWrong}")
+    out_file.write(f"\nMean days in waiting list (without cancelled): {totDaysInWaitingList/nAppointments}")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
     out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
