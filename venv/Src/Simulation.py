@@ -150,10 +150,9 @@ class Appointment(sim.Component):
                 yield self.hold(sim.Triangular(0, int(self.info['relative_visit_day'] - env.now()), math.floor(int(self.info['relative_visit_day'] - env.now()))*90/100))
 
                 self.leave(appointmentScheduleQueue)
-                self.info['Visit status'] = 'Cancelled Pat'
+                self.info['Visit status'] = 'Cancelled Pat (noShowUp)'
 
                 ReplaceAppointment(appointment=self)
-                if validate: nAppointmentsReplaced += 1
         elif self.info['Visit status'] == 'Done':
             # Attendo fino al giorno dell'appuntamento
             yield self.passivate()
@@ -175,6 +174,10 @@ class Appointment(sim.Component):
             if trace: print(f"Appointment done {self.nAppointment} -> Patient: {self.patientId}")
 
         if validate:
+            if self.info['Visit status'] == 'Cancelled Pat (noShowUp)':
+                self.info['Visit status'] = 'Cancelled Pat'
+                nAppointmentsReplaced += 1
+
             if self.patientId not in patientAppointmentsStatusDict:
                 patientAppointmentsStatusDict[self.patientId] = {"NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
 
