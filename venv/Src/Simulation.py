@@ -118,7 +118,8 @@ class Appointment(sim.Component):
         self.reminded = None
 
     def process(self):
-        global nAppointments, nAppointmentsWrong, nAppointmentsReplacedTried, totDaysInWaitingList, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
+        global nAppointments, nAppointmentsWrong, nAppointmentsReplacedTried, totDaysInWaitingList, visitStatus,\
+            totDaysPreferentialInWaitingList,totDaysOrdinaryInWaitingList, nAppointmentOrdinary, nAppointmentPreferential, patientAppointmentsDayDict, patientAppointmentsStatusDict
         if trace: print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
 
         if self.info['Visit status'] == 'Cancelled Pat':
@@ -196,8 +197,17 @@ class Appointment(sim.Component):
 
                 totDaysInWaitingList += int(env.now())-self.startWaitingDay
 
+                if self.info['Character of visit'] == 'Preferential':
+                    totDaysPreferentialInWaitingList += int(env.now())-self.startWaitingDay
+                    nAppointmentPreferential += 1
+
+                if self.info['Character of visit'] == 'Ordinary':
+                    totDaysOrdinaryInWaitingList += int(env.now())-self.startWaitingDay
+                    nAppointmentOrdinary += 1
+
                 if int(env.now()) != int(self.info['relative_visit_day']):
                     nAppointmentsWrong += 1
+
 
 class ReplaceAppointment(sim.Component):
     def setup(self, appointment):
@@ -208,7 +218,8 @@ class ReplaceAppointment(sim.Component):
         for appointment in appointmentScheduleQueue:
             if 1 <= appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] < 5 and \
                     appointment.info['Visit status'] == 'Done' and \
-                    appointment.info['Visit type'] in config['Params']['visitTypes']:
+                    appointment.info['Visit type'] in config['Params']['substituteVisitTypes'] and \
+                    appointment.info['Visit type'] in config['Params']['substituteCharacterOfVisit']:
                 appointment.leave(appointmentScheduleQueue)
                 appointment.info['relative_visit_day'] = self.appointment.info['relative_visit_day']
                 appointment.enter_sorted(appointmentScheduleQueue, appointment.info['relative_visit_day'])
@@ -253,7 +264,8 @@ config.read('ConfigFile.properties')
 # Variabili per la validazione
 visitStatus = { "NoShowUp" : 0, "Done" : 0, "Cancelled Pat" : 0, "Cancelled HS" : 0}
 reminders = { "SMS" : 0, "Phone+SMS" : 0, "Phone": 0, "Other": 0}
-nAppointments = nAppointmentsWrong = nAppointmentsReplacedTried = totDaysInWaitingList = nAppointmentNotReplaced = 0
+nAppointments = nAppointmentsWrong = nAppointmentsReplacedTried = nAppointmentNotReplaced = 0
+totDaysInWaitingList = totDaysOrdinaryInWaitingList = totDaysPreferentialInWaitingList = nAppointmentOrdinary = nAppointmentPreferential = 0
 patientAppointmentsDayDict = {}
 patientAppointmentsWaitingDaysDict = {}
 patientAppointmentsStatusDict = {}
@@ -261,8 +273,6 @@ patientAppointmentsStatusDict = {}
 # Variabili per avere maggiori informazioni
 validate = True
 trace = False
-
-scenary = 2
 
 timeSlot = 15
 env = sim.Environment(trace=False, time_unit='days')
@@ -298,7 +308,7 @@ env.speed(300)
 
 env.run(till=2191)
 
-out_file = open("../Resources/results.txt", "w")
+out_file = open("../Resources/results_sub_" + config["Probabilities"]["noShowUpNotice"] + ".txt", "w")
 
 elapsed_time = time.time() - start_time
 out_file.write(f"Execution time: {elapsed_time}")
@@ -311,7 +321,10 @@ if validate:
     out_file.write(f"\nAppointments tried to replaced (no show up): {nAppointmentsReplacedTried}")
     out_file.write(f"\nAppointments not found substitute: {nAppointmentNotReplaced}")
     out_file.write(f"\nAppointments execute in wrong day (without cancelled): {nAppointmentsWrong}")
-    out_file.write(f"\nMean days in waiting list (without cancelled): {totDaysInWaitingList/sum([dict['Done'] + dict['NoShowUp'] for dict in patientAppointmentsStatusDict.values()])}")
+    out_file.write(f"\n\nMean days in waiting list (without cancelled): {totDaysInWaitingList/sum([dict['Done'] + dict['NoShowUp'] for dict in patientAppointmentsStatusDict.values()])}")
+
+    out_file.write(f"\nMean days ordinary in waiting list (without cancelled): {totDaysOrdinaryInWaitingList/nAppointmentOrdinary}")
+    out_file.write(f"\nMean days preferential in waiting list (without cancelled): {totDaysPreferentialInWaitingList / nAppointmentPreferential}")
 
     # Validazione statistiche genearli sullo status degli appuntamenti
     out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
