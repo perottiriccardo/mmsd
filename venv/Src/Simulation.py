@@ -211,8 +211,8 @@ class DepartmentCapacity(sim.Component):
         while True:
             if trace: print(round(env.now()))
             print(round(env.now()))
-            # Se sabato o domenica setto la capacita degli slots e dei dottori a 0, altrimenti setto capacità 10 dalle 8:00 alle 14:30 e capacità 4 dalle 14:30 alle 21:00. 0 per le restanti ore
 
+            # Gestisce la capacità dei dottori in base agli appuntamenti giornalieri previsti al mattino (8:00 - 14:30) e al pomeriggio (14:30 - 22:00)
             slots.set_capacity(0)
             doctors.set_capacity(0)
             yield self.hold(env.hours(8))
@@ -238,8 +238,8 @@ class DepartmentCapacity(sim.Component):
 start_time = time.time()
 
 with open("../Resources/doctorPerDay.txt", 'r', encoding="utf8") as file:
-    doctorPerDayMorning = file.readline().split(",") # Crea una lista di stopwords andole a recuperare dal file che le contiene
-    doctorPerDayAfternoon = file.readline().split(",")  # Crea una lista di stopwords andole a recuperare dal file che le contiene
+    doctorPerDayMorning = file.readline().split(",")
+    doctorPerDayAfternoon = file.readline().split(",")
 
 config = configparser.ConfigParser()
 config.read('ConfigFile.properties')
