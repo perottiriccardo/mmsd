@@ -118,7 +118,7 @@ class Appointment(sim.Component):
         self.reminded = None
 
     def process(self):
-        global nAppointments, nAppointmentsWrong, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
+        global nAppointments, nAppointmentsWrong, nAppointmentsReplaced, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
         if trace: print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
 
         if self.info['Visit status'] == 'Cancelled Pat':
@@ -223,9 +223,6 @@ class DepartmentCapacity(sim.Component):
             yield self.hold(env.hours(6.5))
 
             capacity = int(doctorPerDayAfternoon[int(env.now())])
-            if int(doctorPerDayMorning[int(env.now())]) != 0:
-                capacity += 1
-
             slots.set_capacity(capacity)
             doctors.set_capacity(capacity)
             yield self.hold(env.hours(7.5))
