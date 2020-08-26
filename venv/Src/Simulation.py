@@ -219,7 +219,7 @@ class ReplaceAppointment(sim.Component):
             if 1 <= appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] < 5 and \
                     appointment.info['Visit status'] == 'Done' and \
                     appointment.info['Visit type'] in config['Params']['substituteVisitTypes'] and \
-                    appointment.info['Visit type'] in config['Params']['substituteCharacterOfVisit']:
+                    appointment.info['Character of visit'] in config['Params']['substituteCharacterOfVisit']:
                 appointment.leave(appointmentScheduleQueue)
                 appointment.info['relative_visit_day'] = self.appointment.info['relative_visit_day']
                 appointment.enter_sorted(appointmentScheduleQueue, appointment.info['relative_visit_day'])
