@@ -118,7 +118,7 @@ class Appointment(sim.Component):
         self.reminded = None
 
     def process(self):
-        global nAppointments, nAppointmentsWrong, nAppointmentsReplaced, totDaysInWaitingList, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
+        global nAppointments, nAppointmentsWrong, nAppointmentsReplacedTried, totDaysInWaitingList, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict
         if trace: print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
 
         if self.info['Visit status'] == 'Cancelled Pat':
@@ -176,7 +176,7 @@ class Appointment(sim.Component):
         if validate:
             if self.info['Visit status'] == 'Cancelled Pat (noShowUp)':
                 self.info['Visit status'] = 'Cancelled Pat'
-                nAppointmentsReplaced += 1
+                nAppointmentsReplacedTried += 1
 
             if self.patientId not in patientAppointmentsStatusDict:
                 patientAppointmentsStatusDict[self.patientId] = {"NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
@@ -204,12 +204,16 @@ class ReplaceAppointment(sim.Component):
         self.appointment = appointment
 
     def process(self):
+        global nAppointmentNotReplaced
         for appointment in appointmentScheduleQueue:
-            if appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] >= 1 and appointment.info['Visit status'] == 'Done':
+            if 1 <= appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] < 5 and \
+                    appointment.info['Visit status'] == 'Done' and \
+                    appointment.info['Visit type'] in config['Params']['visitTypes']:
                 appointment.leave(appointmentScheduleQueue)
                 appointment.info['relative_visit_day'] = self.appointment.info['relative_visit_day']
                 appointment.enter_sorted(appointmentScheduleQueue, appointment.info['relative_visit_day'])
-                break
+                return
+        if validate: nAppointmentNotReplaced += 1
 
 class DepartmentCapacity(sim.Component):
     def process(self):
@@ -249,7 +253,7 @@ config.read('ConfigFile.properties')
 # Variabili per la validazione
 visitStatus = { "NoShowUp" : 0, "Done" : 0, "Cancelled Pat" : 0, "Cancelled HS" : 0}
 reminders = { "SMS" : 0, "Phone+SMS" : 0, "Phone": 0, "Other": 0}
-nAppointments = nAppointmentsWrong = nAppointmentsReplaced = totDaysInWaitingList = 0
+nAppointments = nAppointmentsWrong = nAppointmentsReplacedTried = totDaysInWaitingList = nAppointmentNotReplaced = 0
 patientAppointmentsDayDict = {}
 patientAppointmentsWaitingDaysDict = {}
 patientAppointmentsStatusDict = {}
@@ -257,6 +261,8 @@ patientAppointmentsStatusDict = {}
 # Variabili per avere maggiori informazioni
 validate = True
 trace = False
+
+scenary = 2
 
 timeSlot = 15
 env = sim.Environment(trace=False, time_unit='days')
@@ -302,7 +308,8 @@ doctors.print_statistics()
 
 if validate:
     out_file.write(f"\nAppointments: {nAppointments}")
-    out_file.write(f"\nAppointments replaced (no show up): {nAppointmentsReplaced}")
+    out_file.write(f"\nAppointments tried to replaced (no show up): {nAppointmentsReplacedTried}")
+    out_file.write(f"\nAppointments not found substitute: {nAppointmentNotReplaced}")
     out_file.write(f"\nAppointments execute in wrong day (without cancelled): {nAppointmentsWrong}")
     out_file.write(f"\nMean days in waiting list (without cancelled): {totDaysInWaitingList/sum([dict['Done'] + dict['NoShowUp'] for dict in patientAppointmentsStatusDict.values()])}")
 
