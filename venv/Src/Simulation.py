@@ -205,7 +205,7 @@ class Appointment(sim.Component):
                         totDaysInWaitingListDict['OnlyDone' + self.info['Character of visit']] += int(env.now()) - self.startWaitingDay
                         nAppointmentsDict['OnlyDone' + self.info['Character of visit']] += 1
 
-                if self.info['Visit type'] == 'First' or self.info['Character of visit'] == 'Revision':
+                if self.info['Visit type'] == 'First' or self.info['Visit type'] == 'Revision':
                     totDaysInWaitingListDict[self.info['Visit type']] += int(env.now()) - self.startWaitingDay
                     nAppointmentsDict[self.info['Visit type']] += 1
 
