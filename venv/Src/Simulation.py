@@ -227,8 +227,8 @@ class ReplaceAppointment(sim.Component):
         for appointment in appointmentScheduleQueue:
             if 1 <= appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] < 5 and \
                     appointment.info['Visit status'] == 'Done' and \
-                    appointment.info['Visit type'] in config['Params']['substituteVisitTypes'] and \
-                    appointment.info['Character of visit'] in config['Params']['substituteCharacterOfVisit']:
+                    appointment.info['Visit type'] in substituteVisitTypes and \
+                    appointment.info['Character of visit'] in substituteCharacterOfVisit:
                 appointment.leave(appointmentScheduleQueue)
                 appointment.info['relative_visit_day'] = self.appointment.info['relative_visit_day']
                 appointment.enter_sorted(appointmentScheduleQueue, appointment.info['relative_visit_day'])
@@ -268,9 +268,14 @@ class DepartmentCapacity(sim.Component):
 
 start_time = time.time()
 
-with open("../Resources/doctorPerDay.txt", 'r', encoding="utf8") as file:
-    doctorPerDayMorning = file.readline().split(",")
-    doctorPerDayAfternoon = file.readline().split(",")
+config = configparser.ConfigParser()
+config.read('ConfigFile.properties')
+
+doctorPerDayMorning = config['DoctorPerDay']['morning'].split(",")
+doctorPerDayAfternoon = config['DoctorPerDay']['afternoon'].split(",")
+substituteCharacterOfVisit = config['Params']['substituteCharacterOfVisit'].split(",")
+substituteVisitTypes = config['Params']['substituteVisitTypes'].split(",")
+
 
 config = configparser.ConfigParser()
 config.read('ConfigFile.properties')
