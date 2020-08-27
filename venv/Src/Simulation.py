@@ -224,6 +224,9 @@ class ReplaceAppointment(sim.Component):
                 appointment.info['relative_visit_day'] = self.appointment.info['relative_visit_day']
                 appointment.enter_sorted(appointmentScheduleQueue, appointment.info['relative_visit_day'])
                 return
+            if appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] >=5:
+                if validate: nAppointmentNotReplaced += 1
+                return
         if validate: nAppointmentNotReplaced += 1
 
 class DepartmentCapacity(sim.Component):
