@@ -118,9 +118,7 @@ class Appointment(sim.Component):
         self.reminded = None
 
     def process(self):
-        global nAppointments, nAppointmentsWrong, nAppointmentsReplacedTried, nAppointmentOnlyDoneOrdinary, nAppointmentOnlyDonePreferential, totDaysInWaitingList, visitStatus,\
-            totDaysPreferentialInWaitingList,totDaysOrdinaryInWaitingList, nAppointmentOrdinary, nAppointmentPreferential,\
-            totDaysOnlyDoneOrdinaryInWaitingList, totDaysOnlyDonePreferentialInWaitingList, patientAppointmentsDayDict, patientAppointmentsStatusDict
+        global nAppointmentsDict, totDaysInWaitingListDict, visitStatus, patientAppointmentsDayDict, patientAppointmentsStatusDict, patientAppointmentsWaitingDaysDict
 
         if trace: print(f"Appointment schedule {self.nAppointment} -> Patient: {self.patientId}")
 
@@ -179,12 +177,12 @@ class Appointment(sim.Component):
         if validate:
             if self.info['Visit status'] == 'Cancelled Pat (noShowUp)':
                 self.info['Visit status'] = 'Cancelled Pat'
-                nAppointmentsReplacedTried += 1
+                nAppointmentsDict['TriedToReplaced'] += 1
 
             if self.patientId not in patientAppointmentsStatusDict:
                 patientAppointmentsStatusDict[self.patientId] = {"NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
 
-            nAppointments += 1
+            nAppointmentsDict['Tot'] += 1
             visitStatus[self.info['Visit status']] += 1
             patientAppointmentsStatusDict[self.patientId][self.info['Visit status']] += 1
 
@@ -195,28 +193,28 @@ class Appointment(sim.Component):
 
                 if self.patientId not in patientAppointmentsWaitingDaysDict:
                     patientAppointmentsWaitingDaysDict[self.patientId] = 0
-                patientAppointmentsWaitingDaysDict[self.patientId] += int(env.now())-self.startWaitingDay
+                patientAppointmentsWaitingDaysDict[self.patientId] += int(env.now()) - self.startWaitingDay
 
-                totDaysInWaitingList += int(env.now())-self.startWaitingDay
+                totDaysInWaitingListDict['Tot'] += int(env.now())-self.startWaitingDay
 
-                if self.info['Character of visit'] == 'Preferential':
-                    totDaysPreferentialInWaitingList += int(env.now())-self.startWaitingDay
-                    nAppointmentPreferential += 1
+                if self.info['Character of visit'] == 'Preferential' or self.info['Character of visit'] == 'Ordinary':
+                    totDaysInWaitingListDict[self.info['Character of visit']] += int(env.now()) - self.startWaitingDay
+                    nAppointmentsDict[self.info['Character of visit']] += 1
 
-                if self.info['Character of visit'] == 'Ordinary':
-                    totDaysOrdinaryInWaitingList += int(env.now())-self.startWaitingDay
-                    nAppointmentOrdinary += 1
+                    if self.info['Visit status'] == 'Done':
+                        totDaysInWaitingListDict['OnlyDone' + self.info['Character of visit']] += int(env.now()) - self.startWaitingDay
+                        nAppointmentsDict['OnlyDone' + self.info['Character of visit']] += 1
 
-                if self.info['Visit status'] == 'Done' and self.info['Character of visit'] == 'Preferential':
-                    totDaysOnlyDonePreferentialInWaitingList += int(env.now())-self.startWaitingDay
-                    nAppointmentOnlyDonePreferential += 1
+                if self.info['Visit type'] == 'First' or self.info['Character of visit'] == 'Revision':
+                    totDaysInWaitingListDict[self.info['Visit type']] += int(env.now()) - self.startWaitingDay
+                    nAppointmentsDict[self.info['Visit type']] += 1
 
-                if self.info['Visit status'] == 'Done' and self.info['Character of visit'] == 'Ordinary':
-                    totDaysOnlyDoneOrdinaryInWaitingList += int(env.now())-self.startWaitingDay
-                    nAppointmentOnlyDoneOrdinary += 1
+                    if self.info['Visit status'] == 'Done':
+                        totDaysInWaitingListDict['OnlyDone' + self.info['Visit type']] += int(env.now()) - self.startWaitingDay
+                        nAppointmentsDict['OnlyDone' + self.info['Visit type']] += 1
 
                 if int(env.now()) != int(self.info['relative_visit_day']):
-                    nAppointmentsWrong += 1
+                    nAppointmentsDict['Wrong'] += 1
 
 
 class ReplaceAppointment(sim.Component):
@@ -224,7 +222,8 @@ class ReplaceAppointment(sim.Component):
         self.appointment = appointment
 
     def process(self):
-        global nAppointmentNotReplaced
+        global nAppointmentsDict
+
         for appointment in appointmentScheduleQueue:
             if 1 <= appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] < 5 and \
                     appointment.info['Visit status'] == 'Done' and \
@@ -236,10 +235,10 @@ class ReplaceAppointment(sim.Component):
                 return
 
             if appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] >=5:
-                if validate: nAppointmentNotReplaced += 1
+                if validate: nAppointmentsDict['NotReplaced'] += 1
                 return
 
-        if validate: nAppointmentNotReplaced += 1
+        if validate: nAppointmentsDict['NotReplaced'] += 1
 
 class DepartmentCapacity(sim.Component):
     def process(self):
@@ -279,8 +278,8 @@ config.read('ConfigFile.properties')
 # Variabili per la validazione
 visitStatus = { "NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
 reminders = { "SMS": 0, "Phone+SMS": 0, "Phone": 0, "Other": 0}
-nAppointments = nAppointmentsWrong = nAppointmentsReplacedTried = nAppointmentNotReplaced = nAppointmentOrdinary = nAppointmentPreferential = nAppointmentOnlyDoneOrdinary = nAppointmentOnlyDonePreferential = 0
-totDaysInWaitingList = totDaysOrdinaryInWaitingList = totDaysPreferentialInWaitingList = totDaysOnlyDoneOrdinaryInWaitingList = totDaysOnlyDonePreferentialInWaitingList = 0
+nAppointmentsDict = {"Tot": 0, "Wrong": 0, "TriedToReplaced": 0, "NotReplaced": 0, "Ordinary": 0, "Preferential": 0, "OnlyDoneOrdinary": 0, "OnlyDonePreferential": 0, "First": 0, "Revision": 0, "OnlyDoneFirst": 0, "OnlyDoneRevision": 0}
+totDaysInWaitingListDict = {"Tot": 0, "Ordinary": 0, "Preferential": 0, "OnlyDoneOrdinary": 0, "OnlyDonePreferential": 0, "First": 0, "Revision": 0, "OnlyDoneFirst": 0, "OnlyDoneRevision": 0}
 patientAppointmentsDayDict = {}
 patientAppointmentsWaitingDaysDict = {}
 patientAppointmentsStatusDict = {}
@@ -332,29 +331,34 @@ slots.print_statistics()
 doctors.print_statistics()
 
 if validate:
-    out_file.write(f"\nAppointments: {nAppointments}")
-    out_file.write(f"\nAppointments tried to replaced (no show up): {nAppointmentsReplacedTried}")
-    out_file.write(f"\nAppointments not found substitute: {nAppointmentNotReplaced}")
-    out_file.write(f"\nAppointments execute in wrong day (without cancelled): {nAppointmentsWrong}")
-    
-    out_file.write(f"\n\nMean days in waiting list (without cancelled): {totDaysInWaitingList/sum([dict['Done'] + dict['NoShowUp'] for dict in patientAppointmentsStatusDict.values()])}")
-    out_file.write(f"\nMean days ordinary in waiting list (without cancelled): {totDaysOrdinaryInWaitingList/nAppointmentOrdinary}")
-    out_file.write(f"\nMean days preferential in waiting list (without cancelled): {totDaysPreferentialInWaitingList / nAppointmentPreferential}")
-    out_file.write(f"\nMean days ordinary in waiting list (without cancelled and no show up): {totDaysOnlyDoneOrdinaryInWaitingList/nAppointmentOnlyDoneOrdinary}")
-    out_file.write(f"\nMean days preferential in waiting list (without cancelled and no show up): {totDaysOnlyDonePreferentialInWaitingList / nAppointmentOnlyDonePreferential}")
+    out_file.write(f"\nAppointments: {nAppointmentsDict['Tot']}")
+    out_file.write(f"\nAppointments tried to replaced (no show up): {nAppointmentsDict['TriedToReplaced']}")
+    out_file.write(f"\nAppointments not found substitute: {nAppointmentsDict['NotReplaced']}")
+    out_file.write(f"\nAppointments execute in wrong day (without cancelled): {nAppointmentsDict['Wrong']}")
 
-    # Validazione statistiche genearli sullo status degli appuntamenti
-    out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointments*100}")
-    out_file.write(f"\nDone: {visitStatus['Done']} -> {visitStatus['Done']/nAppointments*100}")
-    out_file.write(f"\nCancelled Pat: {visitStatus['Cancelled Pat']} -> {visitStatus['Cancelled Pat']/nAppointments*100}")
-    out_file.write(f"\nCancelled HS: {visitStatus['Cancelled HS']} -> {visitStatus['Cancelled HS']/nAppointments*100}\n")
+    # Validazione giorni di attesa medi degli appuntamenti
+    out_file.write(f"\n\nMean days in waiting list (without cancelled): {totDaysInWaitingListDict['Tot']/sum([dict['Done'] + dict['NoShowUp'] for dict in patientAppointmentsStatusDict.values()])}")
+    out_file.write(f"\nMean days ordinary in waiting list (without cancelled): {totDaysInWaitingListDict['Ordinary']/nAppointmentsDict['Ordinary']}")
+    out_file.write(f"\nMean days ordinary in waiting list (without cancelled and no show up): {totDaysInWaitingListDict['OnlyDoneOrdinary']/nAppointmentsDict['OnlyDoneOrdinary']}")
+    out_file.write(f"\nMean days preferential in waiting list (without cancelled): {totDaysInWaitingListDict['Preferential']/nAppointmentsDict['Preferential']}")
+    out_file.write(f"\nMean days preferential in waiting list (without cancelled and no show up): {totDaysInWaitingListDict['OnlyDonePreferential']/nAppointmentsDict['OnlyDonePreferential']}")
+    out_file.write(f"\nMean days first in waiting list (without cancelled): {totDaysInWaitingListDict['First']/nAppointmentsDict['First']}")
+    out_file.write(f"\nMean days first in waiting list (without cancelled and no show up): {totDaysInWaitingListDict['OnlyDoneFirst']/nAppointmentsDict['OnlyDoneFirst']}")
+    out_file.write(f"\nMean days revision in waiting list (without cancelled): {totDaysInWaitingListDict['Revision']/nAppointmentsDict['Revision']}")
+    out_file.write(f"\nMean days revision in waiting list (without cancelled and no show up): {totDaysInWaitingListDict['OnlyDoneRevision']/nAppointmentsDict['OnlyDoneRevision']}")
+
+    # Validazione statistiche generali sullo status degli appuntamenti
+    out_file.write(f"\n\nNoShowUp: {visitStatus['NoShowUp']} -> {visitStatus['NoShowUp']/nAppointmentsDict['Tot']*100}")
+    out_file.write(f"\nDone: {visitStatus['Done']} -> {visitStatus['Done']/nAppointmentsDict['Tot']*100}")
+    out_file.write(f"\nCancelled Pat: {visitStatus['Cancelled Pat']} -> {visitStatus['Cancelled Pat']/nAppointmentsDict['Tot']*100}")
+    out_file.write(f"\nCancelled HS: {visitStatus['Cancelled HS']} -> {visitStatus['Cancelled HS']/nAppointmentsDict['Tot']*100}")
 
     # Validazione statistiche genearli sui reminders degli appuntamenti
-    out_file.write(f"\n\nSMS: {reminders['SMS']} -> {reminders['SMS']/nAppointments*100}")
-    out_file.write(f"\nPhone+SMS: {reminders['Phone+SMS']} -> {reminders['Phone+SMS']/nAppointments*100}")
-    out_file.write(f"\nPhone: {reminders['Phone']} -> {reminders['Phone']/nAppointments*100}")
-    out_file.write(f"\nOther: {reminders['Other']} -> {reminders['Other']/nAppointments*100}")
-    out_file.write(f"\nNone: {nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointments - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointments*100}\n")
+    out_file.write(f"\n\nSMS: {reminders['SMS']} -> {reminders['SMS']/nAppointmentsDict['Tot']*100}")
+    out_file.write(f"\nPhone+SMS: {reminders['Phone+SMS']} -> {reminders['Phone+SMS']/nAppointmentsDict['Tot']*100}")
+    out_file.write(f"\nPhone: {reminders['Phone']} -> {reminders['Phone']/nAppointmentsDict['Tot']*100}")
+    out_file.write(f"\nOther: {reminders['Other']} -> {reminders['Other']/nAppointmentsDict['Tot']*100}")
+    out_file.write(f"\nNone: {nAppointmentsDict['Tot'] - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointmentsDict['Tot'] - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointmentsDict['Tot']*100}\n")
 
     with MongoDB() as mongo:
         for patientStatistics in mongo.query("PatientStatistic"):
