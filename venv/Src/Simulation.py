@@ -276,10 +276,6 @@ doctorPerDayAfternoon = config['DoctorPerDay']['afternoon'].split(",")
 substituteCharacterOfVisit = config['Params']['substituteCharacterOfVisit'].split(",")
 substituteVisitTypes = config['Params']['substituteVisitTypes'].split(",")
 
-
-config = configparser.ConfigParser()
-config.read('ConfigFile.properties')
-
 # Variabili per la validazione
 visitStatus = { "NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
 reminders = { "SMS": 0, "Phone+SMS": 0, "Phone": 0, "Other": 0}
