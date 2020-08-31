@@ -216,7 +216,6 @@ class Appointment(sim.Component):
                 if int(env.now()) != int(self.info['relative_visit_day']):
                     nAppointmentsDict['Wrong'] += 1
 
-
 class ReplaceAppointment(sim.Component):
     def setup(self, appointment):
         self.appointment = appointment
@@ -225,16 +224,17 @@ class ReplaceAppointment(sim.Component):
         global nAppointmentsDict
 
         for appointment in appointmentScheduleQueue:
-            if 1 <= appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] < 5 and \
+            if 1 <= appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] <= 3 and \
                     appointment.info['Visit status'] == 'Done' and \
                     appointment.info['Visit type'] in substituteVisitTypes and \
-                    appointment.info['Character of visit'] in substituteCharacterOfVisit:
+                    appointment.info['Character of visit'] in substituteCharacterOfVisit and \
+                    np.random.choice(2, 1, p=[1-float(config['Probabilities']["substituteCharacterOfVisit" + appointment.info['Character of visit']]), float(config['Probabilities']["substituteCharacterOfVisit" + appointment.info['Character of visit']])]) == 0:
                 appointment.leave(appointmentScheduleQueue)
                 appointment.info['relative_visit_day'] = self.appointment.info['relative_visit_day']
                 appointment.enter_sorted(appointmentScheduleQueue, appointment.info['relative_visit_day'])
                 return
 
-            if appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] >=5:
+            if appointment.info['relative_visit_day'] - self.appointment.info['relative_visit_day'] >3:
                 if validate: nAppointmentsDict['NotReplaced'] += 1
                 return
 
@@ -254,12 +254,12 @@ class DepartmentCapacity(sim.Component):
             capacity = int(doctorPerDayMorning[int(env.now())])
             slots.set_capacity(capacity)
             doctors.set_capacity(capacity)
-            yield self.hold(env.hours(6.5))
+            yield self.hold(env.hours(6))
 
             capacity = int(doctorPerDayAfternoon[int(env.now())])
             slots.set_capacity(capacity)
             doctors.set_capacity(capacity)
-            yield self.hold(env.hours(7.5))
+            yield self.hold(env.hours(8))
 
             slots.set_capacity(0)
             doctors.set_capacity(0)
