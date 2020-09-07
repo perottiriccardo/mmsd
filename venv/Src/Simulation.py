@@ -13,7 +13,7 @@ class HospitalBook(sim.Component):
             appointment = Appointment(nAppointment=patient.currentIndex + 1, patientId=patient.id,
                         info=patient.appointments[patient.currentIndex])
 
-            if bool(config['Params']['stochasticScenary']):
+            if int(config['Params']['stochasticScenary']):
                 if np.random.choice(2, 1, p=[1 - float(config['Probabilities']['reminderDone']), config['Probabilities']['reminderDone']]) == 0:
                     self._defineVisitStatus(appointment, reminderNoneVisitStatus)
                 else:
@@ -63,7 +63,6 @@ class HospitalBook(sim.Component):
             appointment.info["Visit status"] = "Cancelled Pat"
         elif visitStatusSampled == 3:
             appointment.info["Visit status"] = "Cancelled HS"
-
 
 class HospitalSchedule(sim.Component):
     def process(self):
@@ -311,9 +310,11 @@ doctorPerDayMorning = config['DoctorPerDay']['morning'].split(",")
 doctorPerDayAfternoon = config['DoctorPerDay']['afternoon'].split(",")
 substituteCharacterOfVisit = config['Params']['substituteCharacterOfVisit'].split(",")
 substituteVisitTypes = config['Params']['substituteVisitTypes'].split(",")
-reminderDoneVisitStatus = config['Probabilities']['reminderDoneVisitStatus'].split(",")
-reminderNoneVisitStatus = config['Probabilities']['reminderNoneVisitStatus'].split(",")
-reminderType = config['Probabilities']['reminderType'].split(",")
+
+if int(config['Params']['stochasticScenary']):
+    reminderDoneVisitStatus = config['Probabilities']['reminderDoneVisitStatus'].split(",")
+    reminderNoneVisitStatus = config['Probabilities']['reminderNoneVisitStatus'].split(",")
+    reminderType = config['Probabilities']['reminderType'].split(",")
 
 # Variabili per la validazione
 visitStatus = { "NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
@@ -400,7 +401,7 @@ if validate:
     out_file.write(f"\nOther: {reminders['Other']} -> {reminders['Other']/nAppointmentsDict['Tot']*100}")
     out_file.write(f"\nNone: {nAppointmentsDict['Tot'] - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointmentsDict['Tot'] - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointmentsDict['Tot']*100}\n")
 
-    if not bool(config['Params']['stochasticScenary']):
+    if not int(config['Params']['stochasticScenary']):
         with MongoDB() as mongo:
             for patientStatistics in mongo.query("PatientStatistic"):
                 # Validazione status degli appuntamenti per ogni paziente
