@@ -13,21 +13,57 @@ class HospitalBook(sim.Component):
             appointment = Appointment(nAppointment=patient.currentIndex + 1, patientId=patient.id,
                         info=patient.appointments[patient.currentIndex])
 
+            if bool(config['Params']['stochasticScenary']):
+                if np.random.choice(2, 1, p=[1 - float(config['Probabilities']['reminderDone']), config['Probabilities']['reminderDone']]) == 0:
+                    self._defineVisitStatus(appointment, reminderNoneVisitStatus)
+                else:
+                    reminderSampled = np.random.choice(4, 1, p=[float(reminderType[0]),
+                                                                float(reminderType[1]),
+                                                                float(reminderType[2]),
+                                                                float(reminderType[3])])
+                    if reminderSampled == 0:
+                        appointment.info["Appointment remainder"] = "Phone"
+                    elif reminderSampled == 1:
+                        appointment.info["Appointment remainder"] = "SMS"
+                    elif reminderSampled == 2:
+                        appointment.info["Appointment remainder"] = "Phone+SMS"
+                    elif reminderSampled == 3:
+                        appointment.info["Appointment remainder"] = "Other"
+
+                    Reminder(appointment=appointment)
+                    self._defineVisitStatus(appointment, reminderDoneVisitStatus)
+            else:
+                # Creo il reminder se esiste e creo la cancellazione dell'ospedale se necessaria
+                if appointment.info['Appointment remainder'] != "None":
+                    Reminder(appointment=appointment)
+
             # Se l'appuntamento non è stato cancellato lo inserisco nella coda di appuntamenti da schedulare e attivo HospitalSchedule
-            if appointment.info["Visit status"] != "Cancelled HS" and appointment.info["Visit status"] != "Cancelled Pat":
-                appointment.enter_sorted(appointmentScheduleQueue, patient.appointments[patient.currentIndex]['relative_visit_day'])
+            if appointment.info["Visit status"] != "Cancelled HS" and appointment.info[
+                "Visit status"] != "Cancelled Pat":
+                appointment.enter_sorted(appointmentScheduleQueue,
+                                         patient.appointments[patient.currentIndex]['relative_visit_day'])
 
                 if hospitalSchedule.ispassive():
                     hospitalSchedule.activate()
 
-            # Creo il reminder se esiste e creo la cancellazione dell'ospedale se necessaria
-            if appointment.info['Appointment remainder'] != "None":
-                Reminder(appointment=appointment)
             if appointment.info["Visit status"] == "Cancelled HS":
                 CancelAppointment(appointment = appointment)
 
             # Riattivo il paziente che ha prenotato per permettergli di prenotare gli appuntamenti successivi e continuo con i restanti pazienti
             patient.activate()
+
+    def _defineVisitStatus(self, appointment, visitStatusProbabilities):
+        visitStatusSampled = np.random.choice(4, 1, p=[float(visitStatusProbabilities[0]), float(visitStatusProbabilities[1]),
+                                                 float(visitStatusProbabilities[2]), float(visitStatusProbabilities[3])])
+        if visitStatusSampled == 0:
+            appointment.info["Visit status"] = "Done"
+        elif visitStatusSampled == 1:
+            appointment.info["Visit status"] = "NoShowUp"
+        elif visitStatusSampled == 2:
+            appointment.info["Visit status"] = "Cancelled Pat"
+        elif visitStatusSampled == 3:
+            appointment.info["Visit status"] = "Cancelled HS"
+
 
 class HospitalSchedule(sim.Component):
     def process(self):
@@ -275,6 +311,9 @@ doctorPerDayMorning = config['DoctorPerDay']['morning'].split(",")
 doctorPerDayAfternoon = config['DoctorPerDay']['afternoon'].split(",")
 substituteCharacterOfVisit = config['Params']['substituteCharacterOfVisit'].split(",")
 substituteVisitTypes = config['Params']['substituteVisitTypes'].split(",")
+reminderDoneVisitStatus = config['Probabilities']['reminderDoneVisitStatus'].split(",")
+reminderNoneVisitStatus = config['Probabilities']['reminderNoneVisitStatus'].split(",")
+reminderType = config['Probabilities']['reminderType'].split(",")
 
 # Variabili per la validazione
 visitStatus = { "NoShowUp": 0, "Done": 0, "Cancelled Pat": 0, "Cancelled HS": 0}
@@ -361,39 +400,40 @@ if validate:
     out_file.write(f"\nOther: {reminders['Other']} -> {reminders['Other']/nAppointmentsDict['Tot']*100}")
     out_file.write(f"\nNone: {nAppointmentsDict['Tot'] - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other'])} -> {(nAppointmentsDict['Tot'] - (reminders['SMS']+reminders['Phone+SMS']+reminders['Phone']+reminders['Other']))/nAppointmentsDict['Tot']*100}\n")
 
-    with MongoDB() as mongo:
-        for patientStatistics in mongo.query("PatientStatistic"):
-            # Validazione status degli appuntamenti per ogni paziente
-            if patientStatistics['pac_unif_cod'] not in patientAppointmentsStatusDict:
-               if patientStatistics['visit_status_appointments']['done'] != 0 or \
-                patientStatistics['visit_status_appointments']['no_show_up'] != 0 or \
-                patientStatistics['visit_status_appointments']['cancelled'] != 0:
-                   out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
-            elif patientStatistics['visit_status_appointments']['done'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] or \
-                patientStatistics['visit_status_appointments']['no_show_up'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp'] or \
-                patientStatistics['visit_status_appointments']['cancelled'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled Pat'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled HS']:
-                out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+    if not bool(config['Params']['stochasticScenary']):
+        with MongoDB() as mongo:
+            for patientStatistics in mongo.query("PatientStatistic"):
+                # Validazione status degli appuntamenti per ogni paziente
+                if patientStatistics['pac_unif_cod'] not in patientAppointmentsStatusDict:
+                   if patientStatistics['visit_status_appointments']['done'] != 0 or \
+                    patientStatistics['visit_status_appointments']['no_show_up'] != 0 or \
+                    patientStatistics['visit_status_appointments']['cancelled'] != 0:
+                       out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
+                elif patientStatistics['visit_status_appointments']['done'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] or \
+                    patientStatistics['visit_status_appointments']['no_show_up'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp'] or \
+                    patientStatistics['visit_status_appointments']['cancelled'] != patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled Pat'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Cancelled HS']:
+                    out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Wrong appointments status")
 
-            # Validazione del tempo medio in waiting list per ogni paziente
-            if patientStatistics['pac_unif_cod'] in patientAppointmentsWaitingDaysDict:
-                if round(patientStatistics['mean_days_in_waiting_list_without_cancelled'], 3) != round(patientAppointmentsWaitingDaysDict[patientStatistics['pac_unif_cod']]/(patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp']), 3):
-                    out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Different mean time in waiting list -> real:"
-                                   f" {round(patientStatistics['mean_days_in_waiting_list_without_cancelled'], 3)}, simulation:"
-                                   f" {round(patientAppointmentsWaitingDaysDict[patientStatistics['pac_unif_cod']]/(patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp']), 3)}")
+                # Validazione del tempo medio in waiting list per ogni paziente
+                if patientStatistics['pac_unif_cod'] in patientAppointmentsWaitingDaysDict:
+                    if round(patientStatistics['mean_days_in_waiting_list_without_cancelled'], 3) != round(patientAppointmentsWaitingDaysDict[patientStatistics['pac_unif_cod']]/(patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp']), 3):
+                        out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Different mean time in waiting list -> real:"
+                                       f" {round(patientStatistics['mean_days_in_waiting_list_without_cancelled'], 3)}, simulation:"
+                                       f" {round(patientAppointmentsWaitingDaysDict[patientStatistics['pac_unif_cod']]/(patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['Done'] + patientAppointmentsStatusDict[patientStatistics['pac_unif_cod']]['NoShowUp']), 3)}")
 
-            # Validazione del numero di intervalli tra appuntamenti NoShowUp e Done per ogni paziente
-            if patientStatistics['pac_unif_cod'] not in patientAppointmentsDayDict:
-                if len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) > 0:
+                # Validazione del numero di intervalli tra appuntamenti NoShowUp e Done per ogni paziente
+                if patientStatistics['pac_unif_cod'] not in patientAppointmentsDayDict:
+                    if len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) > 0:
+                        out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Different number of appointments")
+                        continue
+                elif len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) != len(patientAppointmentsDayDict[patientStatistics['pac_unif_cod']])-1:
                     out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Different number of appointments")
                     continue
-            elif len(patientStatistics['elapsed_time_between_appointments_without_cancelled']) != len(patientAppointmentsDayDict[patientStatistics['pac_unif_cod']])-1:
-                out_file.write(f"\n{patientStatistics['pac_unif_cod']} -> Different number of appointments")
-                continue
 
-            # Validazione degli intervalli tra appuntamenti NoShowUp e Done per ogni paziente
-            for i in range(len(patientStatistics['elapsed_time_between_appointments_without_cancelled'])):
-                if (patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i]) != patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']:
-                    out_file.write(f"\n{patientStatistics['pac_unif_cod']} "
-                          f"-> {i} -- DIFF: {patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i] - patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']}")
+                # Validazione degli intervalli tra appuntamenti NoShowUp e Done per ogni paziente
+                for i in range(len(patientStatistics['elapsed_time_between_appointments_without_cancelled'])):
+                    if (patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i]) != patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']:
+                        out_file.write(f"\n{patientStatistics['pac_unif_cod']} "
+                              f"-> {i} -- DIFF: {patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i+1] - patientAppointmentsDayDict[patientStatistics['pac_unif_cod']][i] - patientStatistics['elapsed_time_between_appointments_without_cancelled'][i]['elapsed_time']}")
 
 out_file.close()
