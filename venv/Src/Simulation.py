@@ -263,7 +263,7 @@ class ReplaceAppointment(sim.Component):
                     appointment.info['Visit status'] == 'Done' and \
                     appointment.info['Visit type'] in substituteVisitTypes and \
                     appointment.info['Character of visit'] in substituteCharacterOfVisit and \
-                    np.random.choice(2, 1, p=[1-float(config['Probabilities']["substituteCharacterOfVisit" + appointment.info['Character of visit']]), float(config['Probabilities']["substituteCharacterOfVisit" + appointment.info['Character of visit']])]) == 0:
+                    np.random.choice(2, 1, p=[1-float(config['Probabilities']["substituteCharacterOfVisit" + appointment.info['Character of visit']]), float(config['Probabilities']["substituteCharacterOfVisit" + appointment.info['Character of visit']])]) == 1:
                 appointment.leave(appointmentScheduleQueue)
                 appointment.info['relative_visit_day'] = self.appointment.info['relative_visit_day']
                 appointment.enter_sorted(appointmentScheduleQueue, appointment.info['relative_visit_day'])
